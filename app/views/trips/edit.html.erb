@@ -1,0 +1,4 @@
+<% content_for :title, "Edit #{@trip.name}" %>
+<p class="crumb"><%= link_to "← #{@trip.name}", trip_path(@trip) %></p>
+<h1 class="page-title">Edit trip</h1>
+<div class="card"><%= render "trips/form", trip: @trip %></div>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title><%= content_for(:title).presence || "Travel" %></title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#c0392b">
+    <%= csrf_meta_tags %>
+    <%= csp_meta_tag %>
+    <%= yield :head %>
+
+    <link rel="manifest" href="/manifest.webmanifest">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
+    <%= javascript_importmap_tags %>
+  </head>
+
+  <body>
+    <header class="site-header">
+      <h1><%= link_to "Travel", root_path %></h1>
+      <nav class="site-nav">
+        <%= link_to "New trip", new_trip_path, class: "btn-outline" %>
+        <%= link_to "Subscribe to Calendar", calendar_path(format: :ics), class: "btn-outline" %>
+      </nav>
+    </header>
+
+    <% if notice.present? %><p class="flash flash-notice" role="status"><%= notice %></p><% end %>
+    <% if alert.present? %><p class="flash flash-alert" role="alert"><%= alert %></p><% end %>
+
+    <main>
+      <%= yield %>
+    </main>
+
+    <footer class="footer-ts">
+      Updated <%= Time.current.utc.strftime("%a, %d %b %Y %H:%M UTC") %>
+      · build <%= Rails.application.config.x.git_sha_short %>
+    </footer>
+
+    <script>
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/service-worker.js");
+      }
+    </script>
+  </body>
+</html>

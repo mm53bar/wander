@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Travel">
+  <rect width="512" height="512" rx="112" fill="#c0392b"/>
+  <path fill="#ffffff" d="M392 140 128 268l86 34 24 92 46-70 88 66zM214 302l150-118-110 150z" opacity="0.35"/>
+  <path fill="#ffffff" d="M392 140 128 268l86 34 178-162-140 176 88 44z"/>
+</svg>

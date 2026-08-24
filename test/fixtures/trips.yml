@@ -1,0 +1,17 @@
+# Relative dates keep the upcoming/past scopes deterministic regardless of when
+# the suite runs.
+lisbon:
+  name: Lisbon City Break
+  destination: Lisbon, Portugal
+  start_date: <%= 20.days.from_now.to_date.iso8601 %>
+  end_date: <%= 25.days.from_now.to_date.iso8601 %>
+  travellers: Two adults
+  booked_via: Example Airlines
+  booking_ref: LIS4RT
+
+kyoto:
+  name: Kyoto in Autumn
+  destination: Kyoto, Japan
+  start_date: <%= 90.days.ago.to_date.iso8601 %>
+  end_date: <%= 80.days.ago.to_date.iso8601 %>
+  travellers: Two adults

@@ -1,0 +1,42 @@
+<% manage = local_assigns.fetch(:manage, false) %>
+<div class="seg">
+  <div class="seg-left"><%= date_badge(segment.local_date) %></div>
+  <div class="seg-right">
+    <div class="seg-header">
+      <span class="seg-emoji"><%= segment.emoji %></span>
+      <span class="seg-type"><%= segment.kind.to_s.tr("_", " ") %></span>
+    </div>
+    <div class="seg-summary"><%= segment.summary %></div>
+
+    <%
+      meta = []
+      meta << tag.span(segment.starts_at_label) if segment.starts_at_label.present?
+      meta << tag.span("→ #{segment.ends_at_label}") if segment.ends_at_label.present?
+      meta << tag.span(segment.location) if segment.location.present?
+      meta << tag.span(segment.confirmation, class: "seg-conf") if segment.confirmation.present?
+    %>
+    <% if meta.any? %><div class="seg-meta"><%= safe_join(meta) %></div><% end %>
+
+    <% if segment.link_list.any? %>
+      <div class="seg-links">
+        <% segment.link_list.each do |link| %>
+          <%= link_to link.label, link.url, target: "_blank", rel: "noopener" %>
+        <% end %>
+      </div>
+    <% end %>
+
+    <% if segment.qr_code %>
+      <div class="seg-qr">
+        <%= image_tag segment.qr_code.data_uri, alt: "QR code", width: 140, height: 140 %>
+      </div>
+    <% end %>
+
+    <% if manage %>
+      <div class="seg-actions">
+        <%= link_to "Edit", edit_segment_path(segment) %>
+        <%= button_to "Delete", segment_path(segment), method: :delete,
+              class: "btn-danger", form: { data: { turbo_confirm: "Delete this segment?" } } %>
+      </div>
+    <% end %>
+  </div>
+</div>

@@ -1,0 +1,13 @@
+lisbon_confirmation:
+  trip: lisbon
+  from_address: bookings@example.com
+  subject: Your Lisbon itinerary is confirmed
+  body: "Confirmation: LIS4RT"
+  received_at: <%= 3.days.ago %>
+
+kyoto_confirmation:
+  trip: kyoto
+  from_address: bookings@example.com
+  subject: Kyoto booking
+  body: "Confirmation: KYO-2233"
+  received_at: <%= 95.days.ago %>

@@ -1,0 +1,17 @@
+<% content_for :title, "Travel" %>
+
+<p class="section-label">Upcoming</p>
+<% if @upcoming.any? %>
+  <%= render partial: "trips/upcoming", collection: @upcoming, as: :trip %>
+<% else %>
+  <p class="empty">No upcoming trips. <%= link_to "Add one", new_trip_path %>.</p>
+<% end %>
+
+<details class="section-past">
+  <summary class="section-label">Past (<%= @past.size %>)</summary>
+  <% if @past.any? %>
+    <%= render partial: "trips/past", collection: @past, as: :trip %>
+  <% else %>
+    <p class="empty">No past trips on record.</p>
+  <% end %>
+</details>

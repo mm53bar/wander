@@ -1,0 +1,57 @@
+<%= form_with model: segment, url: form_url, class: "stack" do |f| %>
+  <% if segment.errors.any? %>
+    <div class="errors">
+      <strong><%= pluralize(segment.errors.count, "error") %> prevented saving:</strong>
+      <ul><% segment.errors.full_messages.each do |m| %><li><%= m %></li><% end %></ul>
+    </div>
+  <% end %>
+
+  <div class="field-row">
+    <div class="field">
+      <%= f.label :kind %>
+      <%= f.text_field :kind, list: "segment-kinds", placeholder: "flight", autofocus: true %>
+      <datalist id="segment-kinds">
+        <% Segment::EMOJI_BY_KIND.each_key do |k| %><option value="<%= k %>"></option><% end %>
+      </datalist>
+    </div>
+    <div class="field" style="max-width:6rem;">
+      <%= f.label :emoji %>
+      <%= f.text_field :emoji, placeholder: "✈️" %>
+    </div>
+  </div>
+
+  <div class="field">
+    <%= f.label :summary %>
+    <%= f.text_field :summary, placeholder: "AA100 — New York (JFK) → London (LHR)" %>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><%= f.label :starts_at, "Starts (UTC)" %><%= f.datetime_field :starts_at %></div>
+    <div class="field"><%= f.label :starts_at_label, "Start label" %><%= f.text_field :starts_at_label, placeholder: "Mar 9, 8:00 PM EDT" %></div>
+  </div>
+  <div class="field-row">
+    <div class="field"><%= f.label :ends_at, "Ends (UTC)" %><%= f.datetime_field :ends_at %></div>
+    <div class="field"><%= f.label :ends_at_label, "End label" %><%= f.text_field :ends_at_label, placeholder: "Mar 10, 8:15 AM BST" %></div>
+  </div>
+
+  <div class="field-row">
+    <div class="field"><%= f.label :location %><%= f.text_field :location, placeholder: "Terminal 4" %></div>
+    <div class="field"><%= f.label :confirmation %><%= f.text_field :confirmation, placeholder: "ABC123" %></div>
+  </div>
+
+  <fieldset style="border:none;">
+    <p class="field"><label>Links</label></p>
+    <% 3.times do |i| %>
+      <% link = segment.link_list[i] %>
+      <div class="field-row">
+        <div class="field"><%= text_field_tag "segment[links][#{i}][label]", link&.label, placeholder: "Website" %></div>
+        <div class="field"><%= url_field_tag "segment[links][#{i}][url]", link&.url, placeholder: "https://…" %></div>
+      </div>
+    <% end %>
+  </fieldset>
+
+  <div class="form-actions">
+    <%= f.submit submit_label, class: "btn-primary" %>
+    <%= link_to "Cancel", trip_path(segment.trip) %>
+  </div>
+<% end %>

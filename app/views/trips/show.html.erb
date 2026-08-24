@@ -1,0 +1,36 @@
+<% content_for :title, @trip.name %>
+
+<p class="crumb"><%= link_to "← All trips", root_path %></p>
+
+<div class="card">
+  <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:1rem;">
+    <div>
+      <h1 class="page-title" style="margin:0;"><%= @trip.name %></h1>
+      <p class="subtle">
+        <%= safe_join([ @trip.destination, trip_date_range(@trip), @trip.travellers ].select(&:present?), " · ") %>
+      </p>
+      <% if @trip.booked_via.present? || @trip.booking_ref.present? %>
+        <p class="subtle">
+          <%= @trip.booked_via %><%= " · Ref: #{@trip.booking_ref}" if @trip.booking_ref.present? %>
+        </p>
+      <% end %>
+    </div>
+    <div class="site-nav">
+      <%= link_to "Edit", edit_trip_path(@trip), class: "btn-outline" %>
+      <%= button_to "Delete", @trip, method: :delete, class: "btn-outline",
+            form: { data: { turbo_confirm: "Delete this trip and everything in it?" } } %>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 class="section-label" style="margin-top:0;">Itinerary</h2>
+  <% if @trip.ordered_segments.any? %>
+    <div class="segments">
+      <%= render partial: "segments/segment", collection: @trip.ordered_segments, as: :segment, locals: { manage: true } %>
+    </div>
+  <% else %>
+    <p class="empty">No segments yet.</p>
+  <% end %>
+  <p style="margin-top:1rem;"><%= link_to "+ Add segment", new_trip_segment_path(@trip), class: "btn-primary" %></p>
+</div>

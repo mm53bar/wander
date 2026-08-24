@@ -1,0 +1,7 @@
+<% content_for :title, "Add segment" %>
+<p class="crumb"><%= link_to "← #{@trip.name}", trip_path(@trip) %></p>
+<h1 class="page-title">Add segment</h1>
+<div class="card">
+  <%= render "segments/form", segment: @segment,
+        form_url: trip_segments_path(@trip), submit_label: "Add segment" %>
+</div>

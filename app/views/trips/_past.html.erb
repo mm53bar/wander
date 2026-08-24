@@ -1,0 +1,7 @@
+<details class="trip-card past">
+  <summary class="trip-summary">
+    <%= trip.name %>
+    <span class="trip-summary-dates">— <%= trip_date_range(trip) %></span>
+  </summary>
+  <%= render "trips/body", trip: trip %>
+</details>

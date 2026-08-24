@@ -1,0 +1,31 @@
+# wander — Docker Compose template.
+#
+# Copy this into your stack (plain `docker compose`, Portainer, etc.), set the
+# volume path, the `user:` UID:GID, and the secret, then deploy.
+#
+# ONE container runs both the web server and the background jobs: config/puma.rb
+# boots the Solid Queue supervisor in-process whenever RAILS_ENV=production
+# (baked into the image), so there's no separate worker service.
+#
+# No auth: wander has no login system by design — see docs/adr/20260823-no-auth-needed.md.
+# Only run it somewhere that isn't publicly reachable (a reverse proxy that
+# resolves internally only, or a LAN-only bind).
+#
+# Secrets are a plain env var, not Rails encrypted credentials, so the repo can
+# be public without committing anything real: SECRET_KEY_BASE comes from the
+# environment — see docs/adr/20260823-secrets-from-env.md.
+
+services:
+  wander:
+    image: ghcr.io/OWNER/wander:latest   # replace OWNER with your GitHub account/org
+    user: "1000:1000"                    # UID:GID that owns the volume below
+    restart: unless-stopped
+    pull_policy: missing
+    volumes:
+      - /path/to/data:/rails/storage:rw  # SQLite databases — must persist
+    ports:
+      - "3002:8080"                      # host:container — the container port is fixed at 8080
+    environment:
+      TZ: UTC
+      # Rails session/cookie signing key (required). Generate with: openssl rand -hex 64
+      SECRET_KEY_BASE: replace-with-64-byte-hex

@@ -1,0 +1,30 @@
+<% content_for :title, "Edit segment" %>
+<p class="crumb"><%= link_to "← #{@trip.name}", trip_path(@trip) %></p>
+<h1 class="page-title">Edit segment</h1>
+<div class="card">
+  <%= render "segments/form", segment: @segment,
+        form_url: segment_path(@segment), submit_label: "Save segment" %>
+</div>
+
+<div class="card">
+  <h2 class="section-label" style="margin-top:0;">QR code</h2>
+  <% if @segment.qr_code %>
+    <div class="seg-qr"><%= image_tag @segment.qr_code.data_uri, alt: "QR code", width: 140, height: 140 %></div>
+    <p style="margin-top:0.75rem;">
+      <%= button_to "Remove QR code", segment_qr_code_path(@segment), method: :delete,
+            class: "btn-danger", form: { data: { turbo_confirm: "Remove this QR code?" } } %>
+    </p>
+  <% else %>
+    <%= form_with url: segment_qr_code_path(@segment), method: :post, class: "stack" do %>
+      <div class="field">
+        <%= label_tag "qr_code[image_data]", "Image data (base64 PNG)" %>
+        <%= text_area_tag "qr_code[image_data]", nil, rows: 3, placeholder: "iVBORw0KGgo…" %>
+      </div>
+      <div class="field">
+        <%= label_tag "qr_code[source_url]", "Source URL (optional)" %>
+        <%= url_field_tag "qr_code[source_url]" %>
+      </div>
+      <div class="form-actions"><%= submit_tag "Attach QR code", class: "btn-primary" %></div>
+    <% end %>
+  <% end %>
+</div>
