@@ -17,6 +17,7 @@ auto-archived once the trip is over.
 - QR code storage per segment (booking passes, tickets)
 - Subscribable iCalendar feed at `/calendar.ics`
 - Source-email ingestion with automatic archiving after a trip ends
+- Travel-email intake: scans a shared mailbox (via the Bichon archiver), identifies booking emails, and files them for review
 - JSON API alongside the HTML UI for programmatic ingestion
 - Installable PWA with offline-friendly caching
 
@@ -51,6 +52,10 @@ secrets (see `docs/adr/20260823-secrets-from-env.md`).
 | `SECRET_KEY_BASE` | yes (production) | Rails session/cookie signing key. `openssl rand -hex 64` |
 | `TZ` | no (defaults `UTC`) | Time zone for display and the calendar feed |
 | `RAILS_MAX_THREADS` | no (defaults `3`) | Puma threads; also sizes the DB pool |
+| `BICHON_URL` | for email intake | Base URL of the Bichon email archiver (read API) |
+| `BICHON_API_TOKEN` | for email intake | Bearer token for Bichon |
+| `BICHON_ACCOUNT_ID` | for email intake | Bichon account id of the shared inbox to scan |
+| `EMAIL_INTAKE_LOOKBACK_DAYS` | no (defaults `30`) | How far back each intake run scans |
 
 There is **no authentication** by design (`docs/adr/20260823-no-auth-needed.md`),
 so only run it somewhere that isn't publicly reachable — behind an

@@ -10,7 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_23_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_000001) do
+  create_table "inbound_emails", force: :cascade do |t|
+    t.text "body"
+    t.datetime "created_at", null: false
+    t.string "from_address"
+    t.string "message_id", null: false
+    t.datetime "received_at", null: false
+    t.integer "score", default: 0, null: false
+    t.json "signals", default: [], null: false
+    t.string "status", default: "received", null: false
+    t.string "subject"
+    t.integer "trip_id"
+    t.datetime "updated_at", null: false
+    t.index ["message_id"], name: "index_inbound_emails_on_message_id", unique: true
+    t.index ["status"], name: "index_inbound_emails_on_status"
+    t.index ["trip_id"], name: "index_inbound_emails_on_trip_id"
+  end
+
   create_table "qr_codes", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.text "image_data", null: false
@@ -64,6 +81,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_23_000001) do
     t.index ["start_date"], name: "index_trips_on_start_date"
   end
 
+  add_foreign_key "inbound_emails", "trips", on_delete: :nullify
   add_foreign_key "qr_codes", "segments", on_delete: :cascade
   add_foreign_key "raw_emails", "trips", on_delete: :cascade
   add_foreign_key "segments", "trips", on_delete: :cascade

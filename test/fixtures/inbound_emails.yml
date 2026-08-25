@@ -1,0 +1,17 @@
+pending_flight:
+  message_id: "<flight-1@example.com>"
+  from_address: no-reply@example-air.com
+  subject: Your booking confirmation
+  body: "Your flight is confirmed. Booking reference ABC123."
+  received_at: <%= 2.days.ago %>
+  score: 5
+  status: received
+
+pending_hotel:
+  message_id: "<hotel-1@example.com>"
+  from_address: mike@example.com
+  subject: "Fwd: Reservation confirmation"
+  body: "Your reservation is confirmed for 3 nights."
+  received_at: <%= 1.day.ago %>
+  score: 4
+  status: received

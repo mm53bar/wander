@@ -2,6 +2,9 @@
 # supervisor in production (config/puma.rb). Dev/test use the :async adapter and
 # don't schedule anything.
 production:
+  email_intake:
+    class: EmailIntakeJob
+    schedule: every 15 minutes
   archive_past_emails:
     class: ArchivePastEmailsJob
     schedule: every day at 4am
