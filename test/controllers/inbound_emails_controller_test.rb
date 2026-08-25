@@ -27,4 +27,10 @@ class InboundEmailsControllerTest < ActionDispatch::IntegrationTest
     post ignore_inbound_email_path(inbound_emails(:pending_hotel))
     assert_equal "ignored", inbound_emails(:pending_hotel).reload.status
   end
+
+  test "destroy removes the captured email" do
+    assert_difference -> { InboundEmail.count }, -1 do
+      delete inbound_email_path(inbound_emails(:pending_hotel))
+    end
+  end
 end

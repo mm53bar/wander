@@ -17,12 +17,17 @@ class EmailIntakeJob < ApplicationJob
     client.messages_since(since).each do |msg|
       next if InboundEmail.exists?(message_id: msg.message_id)
 
-      result = TravelEmailClassifier.new(from: msg.from, subject: msg.subject, body: msg.body).result
-      next unless result.travel?
+      # Cheap first pass on the envelope preview...
+      next unless TravelEmailClassifier.new(from: msg.from, subject: msg.subject, body: msg.preview).result.travel?
+
+      # ...then pull the full body (the preview is truncated and often omits the
+      # reservation dates) for accurate storage, date-matching, and signals.
+      body = client.content(msg.id, fallback: msg.preview)
+      result = TravelEmailClassifier.new(from: msg.from, subject: msg.subject, body: body).result
 
       InboundEmail.create!(
         message_id: msg.message_id, from_address: msg.from, subject: msg.subject,
-        body: msg.body, received_at: msg.received_at, score: result.score, signals: result.signals
+        body: body, received_at: msg.received_at, score: result.score, signals: result.signals
       )
     end
   end

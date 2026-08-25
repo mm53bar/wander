@@ -22,7 +22,7 @@ Rails.application.routes.draw do
 
   # wander's own inbox of travel-related mail captured from the shared casey@
   # mailbox by EmailIntakeJob. File onto a trip or dismiss as a false positive.
-  resources :inbound_emails, only: [ :index ] do
+  resources :inbound_emails, only: [ :index, :destroy ] do
     member do
       post :file
       post :ignore

@@ -6,10 +6,12 @@ class EmailIntakeJobTest < ActiveJob::TestCase
     def initialize(messages) = @messages = messages
     def configured? = true
     def messages_since(_since, **) = @messages
+    # Full body == preview in tests (the preview already carries the signal).
+    def content(_id, fallback: "") = fallback
   end
 
   def msg(id, from:, subject:, body:)
-    BichonClient::Message.new(message_id: id, from: from, subject: subject, body: body, received_at: Time.current)
+    BichonClient::Message.new(id: id, message_id: id, from: from, subject: subject, preview: body, received_at: Time.current)
   end
 
   test "captures only travel-related messages" do

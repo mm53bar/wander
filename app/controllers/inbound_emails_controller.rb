@@ -29,4 +29,9 @@ class InboundEmailsController < ApplicationController
     InboundEmail.find(params[:id]).ignore!
     redirect_to inbound_emails_path, notice: "Dismissed."
   end
+
+  def destroy
+    InboundEmail.find(params[:id]).destroy
+    redirect_to inbound_emails_path, notice: "Deleted.", status: :see_other
+  end
 end

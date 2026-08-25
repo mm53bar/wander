@@ -45,6 +45,7 @@
       </div>
       <%= submit_tag (suggested ? "Confirm" : "File"), class: "btn-primary" %>
       <%= link_to "Dismiss", ignore_inbound_email_path(email), data: { turbo_method: :post }, class: "btn-outline" %>
+      <%= link_to "Delete", inbound_email_path(email), data: { turbo_method: :delete, turbo_confirm: "Delete this captured email?" }, class: "btn-danger" %>
     <% end %>
   </div>
 <% end %>

@@ -12,12 +12,15 @@ require "uri"
 class BichonClient
   # One message envelope. Bichon's `text` field already carries the body, so a
   # separate content fetch isn't needed for classification or capture.
-  Message = Data.define(:message_id, :from, :subject, :body, :received_at) do
+  # The envelope `text` is a short preview; `id` is Bichon's numeric id, used to
+  # fetch the full body via #content.
+  Message = Data.define(:id, :message_id, :from, :subject, :preview, :received_at) do
     def self.from_envelope(env)
       date_ms = env["date"] || env["internal_date"]
       new(
+        id: env["id"],
         message_id: env["message_id"].presence || "bichon-#{env["id"]}",
-        from: env["from"], subject: env["subject"], body: env["text"].to_s,
+        from: env["from"], subject: env["subject"], preview: env["text"].to_s,
         received_at: date_ms ? Time.at(date_ms.to_i / 1000) : Time.current
       )
     end
@@ -52,7 +55,25 @@ class BichonClient
     messages
   end
 
+  # Full plaintext body for a message (the envelope only carries a preview).
+  # Falls back to HTML with tags stripped, then the preview.
+  def content(id, fallback: "")
+    uri = URI("#{@base_url}/api/v1/message-content/#{@account_id}/#{id}")
+    req = Net::HTTP::Get.new(uri, "Authorization" => "Bearer #{@token}")
+    res = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https", read_timeout: 30) { |h| h.request(req) }
+    return fallback unless res.code.to_i.between?(200, 299)
+    data = JSON.parse(res.body)
+    data["text"].presence || strip_html(data["html"]).presence || fallback
+  rescue StandardError
+    fallback
+  end
+
   private
+
+  def strip_html(html)
+    return nil if html.blank?
+    ActionView::Base.full_sanitizer.sanitize(html).to_s.squish
+  end
 
   def search(since_ms:, page:, page_size:)
     uri = URI("#{@base_url}/api/v1/search-messages")

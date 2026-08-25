@@ -12,7 +12,7 @@ class BichonClientTest < ActiveSupport::TestCase
       "text" => "body here", "date" => 1_787_527_187_000
     )
     assert_equal "<a@b>", msg.message_id
-    assert_equal "body here", msg.body
+    assert_equal "body here", msg.preview
     assert_equal Time.at(1_787_527_187), msg.received_at
   end
 
