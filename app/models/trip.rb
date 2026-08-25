@@ -41,8 +41,10 @@ class Trip < ApplicationRecord
   # undated ones in the order they were added.
   # Migrated/manual source emails plus filed inbound ones, as one list.
   def source_emails
-    (raw_emails.to_a + inbound_emails.where(status: %w[filed duplicate]).to_a)
-      .sort_by { |e| e.received_at || Time.zone.at(0) }
+    all = raw_emails.to_a + inbound_emails.where(status: %w[filed duplicate]).to_a
+    # De-dupe a legacy email that exists as both a raw_email and a filed inbound.
+    all.uniq { |e| [ e.subject, e.received_at&.to_i ] }
+       .sort_by { |e| e.received_at || Time.zone.at(0) }
   end
 
   def ordered_segments
