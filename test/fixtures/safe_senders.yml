@@ -1,0 +1,19 @@
+bcferries:
+  value: bcferries.com
+  name: BC Ferries
+  active: true
+
+aircanada:
+  value: aircanada
+  name: Air Canada
+  active: true
+
+camis:
+  value: camis.com
+  name: BC Parks / camis
+  active: true
+
+disabled_example:
+  value: disabled-air.example
+  name: Disabled
+  active: false

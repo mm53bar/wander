@@ -1,0 +1,45 @@
+<% content_for :title, "Settings — Safe senders" %>
+
+<h1 class="page-title">Safe senders</h1>
+<p class="subtle" style="margin-bottom:1rem;">
+  Email addresses or domains of travel providers. A message is treated as a
+  booking when one of these appears <strong>anywhere in it</strong> — including
+  the body, since forwarded confirmations carry the real sender there. Add the
+  providers you book with; booking-language detection still catches the rest for
+  review.
+</p>
+
+<div class="card">
+  <%= form_with model: @safe_sender, class: "field-row", style: "align-items:flex-end; margin:0;" do |f| %>
+    <div class="field" style="flex:2;">
+      <%= f.label :value, "Address or domain" %>
+      <%= f.text_field :value, placeholder: "no-reply@bcferries.com  or  aircanada.ca", required: true %>
+    </div>
+    <div class="field" style="flex:1;">
+      <%= f.label :name, "Label (optional)" %>
+      <%= f.text_field :name, placeholder: "BC Ferries" %>
+    </div>
+    <%= f.submit "Add", class: "btn-primary" %>
+  <% end %>
+  <% if @safe_sender.errors.any? %>
+    <p class="errors" style="margin-top:0.75rem;"><%= @safe_sender.errors.full_messages.to_sentence %></p>
+  <% end %>
+</div>
+
+<div class="card">
+  <p class="subtle"><%= pluralize(@safe_senders.size, "sender") %> · <%= @safe_senders.active.count %> active</p>
+  <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+    <% @safe_senders.each do |s| %>
+      <tr style="border-top:1px solid var(--border);">
+        <td style="padding:0.45rem 0.5rem 0.45rem 0; font-family:monospace;"><%= s.value %></td>
+        <td style="padding:0.45rem 0.5rem; color:var(--text-muted);"><%= s.name %></td>
+        <td style="padding:0.45rem 0; text-align:right; white-space:nowrap;">
+          <%= button_to (s.active? ? "Disable" : "Enable"), safe_sender_path(s), method: :patch,
+                params: { safe_sender: { active: !s.active } }, class: "btn-outline" %>
+          <%= button_to "Remove", safe_sender_path(s), method: :delete, class: "btn-danger",
+                form: { style: "display:inline;", data: { turbo_confirm: "Remove #{s.value}?" } } %>
+        </td>
+      </tr>
+    <% end %>
+  </table>
+</div>

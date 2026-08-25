@@ -18,6 +18,7 @@ auto-archived once the trip is over.
 - Subscribable iCalendar feed at `/calendar.ics`
 - Source-email ingestion with automatic archiving after a trip ends
 - Travel-email intake: scans a shared mailbox (via the Bichon archiver), identifies booking emails, and files them for review
+- Managed **safe-sender list** (Settings page) drives travel detection — matched in the body too, for forwarded bookings
 - JSON API alongside the HTML UI for programmatic ingestion
 - Installable PWA with offline-friendly caching
 

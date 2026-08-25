@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_000002) do
   create_table "inbound_emails", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -47,6 +47,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_000001) do
     t.datetime "updated_at", null: false
     t.index ["trip_id", "received_at"], name: "index_raw_emails_on_trip_id_and_received_at"
     t.index ["trip_id"], name: "index_raw_emails_on_trip_id"
+  end
+
+  create_table "safe_senders", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.string "name"
+    t.datetime "updated_at", null: false
+    t.string "value", null: false
+    t.index ["value"], name: "index_safe_senders_on_value", unique: true
   end
 
   create_table "segments", force: :cascade do |t|

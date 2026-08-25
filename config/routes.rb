@@ -23,6 +23,10 @@ Rails.application.routes.draw do
     end
   end
 
+  # Settings — the managed list of travel-provider senders the classifier trusts.
+  resources :safe_senders, only: [ :index, :create, :update, :destroy ]
+  get "settings", to: "safe_senders#index"
+
   # Subscribable iCalendar feed of every timed segment. calendar_path(format: :ics)
   # renders /calendar.ics; the bare /calendar redirects to it.
   get "calendar", to: "calendars#show", as: :calendar, defaults: { format: "ics" }
