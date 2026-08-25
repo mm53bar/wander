@@ -25,7 +25,7 @@ class TripMatcher
   def suggested_trip
     dates = extracted_dates
     return nil if dates.empty?
-    scored = Trip.all.map { |t| [ t, dates.count { |d| (t.start_date..t.end_date).cover?(d) } ] }
+    scored = Trip.fileable.map { |t| [ t, dates.count { |d| (t.start_date..t.end_date).cover?(d) } ] }
     trip, hits = scored.max_by { |(_, n)| n }
     hits.to_i.positive? ? trip : nil
   end

@@ -53,7 +53,7 @@ class SegmentsController < ApplicationController
   # Repoint a segment to another trip.
   def move
     @segment = Segment.find(params[:id])
-    @trips = Trip.where.not(id: @segment.trip_id).order(start_date: :desc)
+    @trips = Trip.unarchived.where.not(id: @segment.trip_id).order(start_date: :desc)
   end
 
   def relocate

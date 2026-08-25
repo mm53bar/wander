@@ -10,7 +10,7 @@ class InboundEmailsController < ApplicationController
       end
     end
 
-    @trips = Trip.order(start_date: :desc)
+    @trips = Trip.fileable
     # For each remaining email, the best-guess trip to default the picker to.
     @inbound_emails = InboundEmail.received.to_a
     @suggestions = @inbound_emails.index_with(&:suggested_trip)

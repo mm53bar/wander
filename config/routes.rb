@@ -5,6 +5,10 @@ Rails.application.routes.draw do
   root "trips#index"
 
   resources :trips do
+    member do
+      post :archive
+      post :unarchive
+    end
     resources :segments, only: [ :new, :create ]
     resources :raw_emails, only: [ :index, :create ]
   end

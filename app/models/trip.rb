@@ -9,11 +9,31 @@ class Trip < ApplicationRecord
   # A trip is "past" once its last day is behind us; everything else is upcoming
   # (this includes trips happening right now). end_date is the pivot so a trip
   # stays on the Upcoming list until the day after it finishes.
-  scope :upcoming, -> { where(end_date: Date.current..).order(:start_date) }
-  scope :past, -> { where(end_date: ...Date.current).order(end_date: :desc) }
+  scope :unarchived, -> { where(archived_at: nil) }
+  scope :archived, -> { where.not(archived_at: nil).order(end_date: :desc) }
+  # Active (unarchived) trips split by whether they've finished.
+  scope :upcoming, -> { unarchived.where(end_date: Date.current..).order(:start_date) }
+  scope :past, -> { unarchived.where(end_date: ...Date.current).order(end_date: :desc) }
+  # Trips offered when filing a booking: upcoming, unarchived, soonest first.
+  scope :fileable, -> { upcoming }
 
   def past?
     end_date < Date.current
+  end
+
+  def archived?
+    archived_at.present?
+  end
+
+  def archive! = update!(archived_at: Time.current)
+  def unarchive! = update!(archived_at: nil)
+
+  # "Trip name — Sep 5–8, 2026" for pickers.
+  def label_with_dates
+    same_year = start_date.year == end_date.year
+    left = start_date.strftime("%b %-d")
+    right = same_year ? end_date.strftime("%b %-d, %Y") : end_date.strftime("%b %-d, %Y")
+    "#{name} — #{left}–#{right}"
   end
 
   # Segments in the order they happen: timed ones first by instant, then any

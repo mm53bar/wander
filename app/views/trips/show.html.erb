@@ -17,6 +17,11 @@
     </div>
     <div class="site-nav">
       <%= link_to "Edit", edit_trip_path(@trip), class: "btn-outline" %>
+      <% if @trip.archived? %>
+        <%= button_to "Unarchive", unarchive_trip_path(@trip), class: "btn-outline" %>
+      <% else %>
+        <%= button_to "Archive", archive_trip_path(@trip), class: "btn-outline" %>
+      <% end %>
       <%= button_to "Delete", @trip, method: :delete, class: "btn-outline",
             form: { data: { turbo_confirm: "Delete this trip and everything in it?" } } %>
     </div>

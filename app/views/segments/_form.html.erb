@@ -8,7 +8,7 @@
 
   <div class="field">
     <%= f.label :trip_id, "Trip" %>
-    <%= f.collection_select :trip_id, Trip.order(start_date: :desc), :id, :name %>
+    <%= f.collection_select :trip_id, Trip.unarchived.order(start_date: :desc), :id, :label_with_dates %>
   </div>
 
   <div class="field-row">

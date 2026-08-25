@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_25_000003) do
   create_table "inbound_emails", force: :cascade do |t|
     t.text "body"
     t.datetime "created_at", null: false
@@ -77,6 +77,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_000002) do
   end
 
   create_table "trips", force: :cascade do |t|
+    t.datetime "archived_at"
     t.string "booked_via"
     t.string "booking_ref"
     t.datetime "created_at", null: false
@@ -86,6 +87,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_000002) do
     t.date "start_date", null: false
     t.string "travellers"
     t.datetime "updated_at", null: false
+    t.index ["archived_at"], name: "index_trips_on_archived_at"
     t.index ["end_date"], name: "index_trips_on_end_date"
     t.index ["start_date"], name: "index_trips_on_start_date"
   end

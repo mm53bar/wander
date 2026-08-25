@@ -15,3 +15,10 @@
     <p class="empty">No past trips on record.</p>
   <% end %>
 </details>
+
+<% if @archived.any? %>
+  <details class="section-past">
+    <summary class="section-label">Archived (<%= @archived.size %>)</summary>
+    <%= render partial: "trips/past", collection: @archived, as: :trip %>
+  </details>
+<% end %>

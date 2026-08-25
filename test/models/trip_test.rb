@@ -28,4 +28,27 @@ class TripTest < ActiveSupport::TestCase
     assert_equal segments(:lisbon_flight), ordered.first
     assert_equal segments(:lisbon_hotel), ordered.last
   end
+  test "archived trips are excluded from upcoming, past, and fileable" do
+    trips(:lisbon).archive!
+    assert_not_includes Trip.upcoming, trips(:lisbon)
+    assert_not_includes Trip.fileable, trips(:lisbon)
+    assert_includes Trip.archived, trips(:lisbon)
+  end
+
+  test "fileable is upcoming unarchived, soonest first" do
+    assert_equal Trip.upcoming.to_a, Trip.fileable.to_a
+    assert_not_includes Trip.fileable, trips(:kyoto) # past
+  end
+
+  test "label_with_dates includes name and dates" do
+    assert_match(/Lisbon City Break —/, trips(:lisbon).label_with_dates)
+  end
+
+  test "archive! and unarchive! toggle archived_at" do
+    t = trips(:lisbon)
+    t.archive!
+    assert t.reload.archived?
+    t.unarchive!
+    assert_not t.reload.archived?
+  end
 end

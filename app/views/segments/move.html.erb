@@ -12,7 +12,7 @@
   <%= form_with url: relocate_segment_path(@segment), method: :patch, class: "stack" do %>
     <div class="field">
       <label><input type="radio" name="target" value="existing" checked> Move to an existing trip</label>
-      <%= select_tag :trip_id, options_from_collection_for_select(@trips, :id, ->(t) { "#{t.name} (#{trip_date_range(t)})" }) %>
+      <%= select_tag :trip_id, options_from_collection_for_select(@trips, :id, :label_with_dates) %>
     </div>
     <div class="field">
       <label><input type="radio" name="target" value="new"> Split into a new trip</label>

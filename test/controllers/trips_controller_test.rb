@@ -47,4 +47,10 @@ class TripsControllerTest < ActionDispatch::IntegrationTest
     end
     assert_not Segment.exists?(seg_id)
   end
+  test "archive and unarchive a trip" do
+    post archive_trip_path(trips(:lisbon))
+    assert trips(:lisbon).reload.archived?
+    post unarchive_trip_path(trips(:lisbon))
+    assert_not trips(:lisbon).reload.archived?
+  end
 end

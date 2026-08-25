@@ -40,7 +40,7 @@
           <% if suggested %><span class="subtle">— suggested from dates</span><% end %>
         </label>
         <%= select_tag :trip_id,
-              options_from_collection_for_select(@trips, :id, :name, suggested&.id),
+              options_from_collection_for_select(@trips, :id, :label_with_dates, suggested&.id),
               include_blank: "Choose a trip…", required: true %>
       </div>
       <%= submit_tag (suggested ? "Confirm" : "File"), class: "btn-primary" %>
