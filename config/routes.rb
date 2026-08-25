@@ -29,7 +29,9 @@ Rails.application.routes.draw do
   resources :inbound_emails, only: [ :index, :destroy ] do
     member do
       post :file
+      post :accept
       post :ignore
+      post :undo
     end
   end
 

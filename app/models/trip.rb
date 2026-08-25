@@ -1,6 +1,7 @@
 class Trip < ApplicationRecord
   has_many :segments, dependent: :destroy
   has_many :raw_emails, dependent: :destroy
+  has_many :inbound_emails, dependent: :nullify
 
   validates :name, presence: true
   validates :start_date, :end_date, presence: true
@@ -38,6 +39,12 @@ class Trip < ApplicationRecord
 
   # Segments in the order they happen: timed ones first by instant, then any
   # undated ones in the order they were added.
+  # Migrated/manual source emails plus filed inbound ones, as one list.
+  def source_emails
+    (raw_emails.to_a + inbound_emails.where(status: %w[filed duplicate]).to_a)
+      .sort_by { |e| e.received_at || Time.zone.at(0) }
+  end
+
   def ordered_segments
     segments.order(Arel.sql("starts_at IS NULL, starts_at ASC, created_at ASC"))
   end

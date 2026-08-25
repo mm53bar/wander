@@ -2,50 +2,91 @@
 
 <h1 class="page-title">Travel inbox</h1>
 <p class="subtle" style="margin-bottom:1rem;">
-  Messages the intake identified as travel-related. Confirm the suggested trip,
-  pick a different one, or dismiss a false positive.
-  <% if @auto_resolved.positive? %>
-    <br><em><%= pluralize(@auto_resolved, "message") %> auto-matched to an existing
-    booking (confirmation already on a trip) and cleared.</em>
-  <% end %>
+  Booking emails the intake identified. High-confidence matches to an existing
+  trip file themselves; the rest — new trips, extensions, or uncertain ones —
+  wait here for you to confirm.
 </p>
 
 <% if @inbound_emails.none? %>
-  <p class="empty">Nothing waiting. New booking emails show up here after the next intake run.</p>
+  <p class="empty">Nothing waiting. New bookings appear here after the next intake run.</p>
 <% end %>
 
 <% @inbound_emails.each do |email| %>
-  <% suggested = @suggestions[email] %>
   <div class="card">
     <div class="raw-email-header">
       <strong><%= email.subject.presence || "(no subject)" %></strong><br>
       <%= email.from_address %> &nbsp;·&nbsp; <%= email.received_at.strftime("%Y-%m-%d %H:%M") %>
     </div>
 
-    <% if email.signals.any? %>
-      <p style="margin:0.4rem 0;">
-        <% email.signals.first(6).each do |sig| %><span class="seg-conf"><%= sig %></span> <% end %>
-      </p>
+    <% if email.proposal? %>
+      <% seg = email.proposed_segment %>
+      <div style="margin:0.6rem 0; padding:0.6rem 0.75rem; background:var(--bg); border-radius:6px;">
+        <div class="seg-summary" style="margin:0;">
+          <%= seg["kind"] %> · <%= seg["summary"] %>
+        </div>
+        <div class="seg-meta" style="margin-top:0.25rem;">
+          <% if seg["starts_at"].present? %><span><%= seg["starts_at"].to_s[0,16].tr("T"," ") %><% if seg["ends_at"].present? %> → <%= seg["ends_at"].to_s[0,16].tr("T"," ") %><% end %></span><% end %>
+          <% if seg["location"].present? %><span><%= seg["location"] %></span><% end %>
+          <% if seg["confirmation"].present? %><span class="seg-conf"><%= seg["confirmation"] %></span><% end %>
+        </div>
+        <p class="subtle" style="margin-top:0.4rem;">
+          <% if email.proposed_trip %>→ <strong><%= email.proposed_trip.name %></strong><%
+            elsif email.proposed_new_trip.present? %>→ <strong>New trip: <%= email.proposed_new_trip["name"] %></strong>
+            (<%= email.proposed_new_trip["start_date"] %>–<%= email.proposed_new_trip["end_date"] %>)<% end %>
+          &nbsp;·&nbsp; <%= email.confidence %> confidence
+          <% if email.reason.present? %><br><em><%= email.reason %></em><% end %>
+        </p>
+      </div>
+
+      <%= form_with url: accept_inbound_email_path(email), method: :post, class: "stack", style: "gap:0.6rem;" do %>
+        <div class="field" style="max-width:26rem;">
+          <label>Trip</label>
+          <%= select_tag :trip_id, trip_options_for(email), include_blank: false %>
+        </div>
+        <% if email.extends_trip && email.suggested_end_date %>
+          <label class="subtle">
+            <%= check_box_tag :extend_dates, "1", true %>
+            Extend the trip to <%= email.suggested_end_date.strftime("%b %-d, %Y") %>
+          </label>
+        <% end %>
+        <div class="form-actions">
+          <%= submit_tag "Accept", class: "btn-primary" %>
+          <%= link_to "Dismiss", ignore_inbound_email_path(email), data: { turbo_method: :post }, class: "btn-outline" %>
+          <%= link_to "Delete", inbound_email_path(email), data: { turbo_method: :delete, turbo_confirm: "Delete this email?" }, class: "btn-danger" %>
+        </div>
+      <% end %>
+
+    <% else %>
+      <%# No LLM proposal — fall back to filing as a source email %>
+      <% suggested = @suggestions[email] %>
+      <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row", style: "align-items:flex-end; gap:0.5rem; margin:0.4rem 0 0;" do %>
+        <div class="field" style="min-width:15rem;">
+          <label>File to trip</label>
+          <%= select_tag :trip_id, options_from_collection_for_select(@trips, :id, :label_with_dates, suggested&.id), include_blank: "Choose a trip…", required: true %>
+        </div>
+        <%= submit_tag "File", class: "btn-primary" %>
+        <%= link_to "Dismiss", ignore_inbound_email_path(email), data: { turbo_method: :post }, class: "btn-outline" %>
+      <% end %>
     <% end %>
 
-    <details style="margin:0.5rem 0;">
+    <details style="margin-top:0.5rem;">
       <summary class="subtle" style="cursor:pointer;">Show message</summary>
       <div class="raw-email-body"><pre><%= truncate(email.body.to_s, length: 4000) %></pre></div>
     </details>
-
-    <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row", style: "align-items:flex-end; gap:0.5rem; margin:0;" do %>
-      <div class="field" style="min-width:15rem;">
-        <label>
-          Trip
-          <% if suggested %><span class="subtle">— suggested from dates</span><% end %>
-        </label>
-        <%= select_tag :trip_id,
-              options_from_collection_for_select(@trips, :id, :label_with_dates, suggested&.id),
-              include_blank: "Choose a trip…", required: true %>
-      </div>
-      <%= submit_tag (suggested ? "Confirm" : "File"), class: "btn-primary" %>
-      <%= link_to "Dismiss", ignore_inbound_email_path(email), data: { turbo_method: :post }, class: "btn-outline" %>
-      <%= link_to "Delete", inbound_email_path(email), data: { turbo_method: :delete, turbo_confirm: "Delete this captured email?" }, class: "btn-danger" %>
-    <% end %>
   </div>
+<% end %>
+
+<% if @auto_filed.any? %>
+  <details class="section-past">
+    <summary class="section-label">Auto-filed (<%= @auto_filed.size %>)</summary>
+    <% @auto_filed.each do |email| %>
+      <div class="card" style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+        <div>
+          <strong><%= email.subject %></strong><br>
+          <span class="subtle">→ <%= email.trip&.name %></span>
+        </div>
+        <%= button_to "Undo", undo_inbound_email_path(email), class: "btn-outline" %>
+      </div>
+    <% end %>
+  </details>
 <% end %>

@@ -15,10 +15,11 @@
   <%= render partial: "segments/segment", collection: trip.ordered_segments, as: :segment %>
 </div>
 
-<% if trip.raw_emails.loaded? ? trip.raw_emails.any? : trip.raw_emails.exists? %>
+<% emails = trip.source_emails %>
+<% if emails.any? %>
   <details class="raw-emails">
-    <summary>Source emails (<%= trip.raw_emails.size %>)</summary>
-    <% trip.raw_emails.sort_by(&:received_at).each do |email| %>
+    <summary>Source emails (<%= emails.size %>)</summary>
+    <% emails.each do |email| %>
       <div class="raw-email-item">
         <div class="raw-email-header">
           <strong><%= email.subject %></strong> &nbsp;·&nbsp;

@@ -15,12 +15,31 @@ class InboundEmailsControllerTest < ActionDispatch::IntegrationTest
     assert_equal trips(:lisbon), dup.trip
   end
 
-  test "file attaches the email to a trip and removes it from the inbox" do
+  test "file marks the email filed to a trip (source record, no segment)" do
     inbound = inbound_emails(:pending_flight)
-    assert_difference -> { trips(:lisbon).raw_emails.count }, 1 do
-      post file_inbound_email_path(inbound), params: { trip_id: trips(:lisbon).id }
-    end
+    post file_inbound_email_path(inbound), params: { trip_id: trips(:lisbon).id }
     assert_equal "filed", inbound.reload.status
+    assert_equal trips(:lisbon), inbound.trip
+  end
+
+  test "accept materializes a proposal into a segment on the trip" do
+    inbound = inbound_emails(:pending_hotel)
+    inbound.apply_proposal!(segment: { "kind" => "hotel", "summary" => "Stay" }, trip_id: trips(:lisbon).id,
+      new_trip: nil, extends_trip: false, suggested_end_date: nil, confidence: "high", reason: nil)
+    assert_difference -> { trips(:lisbon).segments.count }, 1 do
+      post accept_inbound_email_path(inbound)
+    end
+    assert_redirected_to trips(:lisbon)
+    assert_equal "filed", inbound.reload.status
+  end
+
+  test "undo returns an auto-filed email to the inbox" do
+    inbound = inbound_emails(:pending_hotel)
+    inbound.apply_proposal!(segment: { "kind" => "hotel", "summary" => "Stay" }, trip_id: trips(:lisbon).id,
+      new_trip: nil, extends_trip: false, suggested_end_date: nil, confidence: "high", reason: nil)
+    inbound.auto_accept!
+    post undo_inbound_email_path(inbound)
+    assert_equal "received", inbound.reload.status
   end
 
   test "ignore dismisses the email" do

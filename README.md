@@ -20,6 +20,7 @@ auto-archived once the trip is over.
 - Travel-email intake: scans a shared mailbox (via the Bichon archiver), identifies booking emails, and files them for review
 - Managed **safe-sender list** (Settings page) drives travel detection — matched in the body too, for forwarded bookings
 - Draft an itinerary segment from a booking email with an LLM (review before saving; OpenAI-compatible, e.g. Ollama)
+- Inbox triage: the LLM proposes the segment AND the trip (existing, extended, or new); high-confidence existing-trip matches auto-file (with undo), the rest wait for one-click review
 - JSON API alongside the HTML UI for programmatic ingestion
 - Installable PWA with offline-friendly caching
 

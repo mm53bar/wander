@@ -25,10 +25,27 @@ class EmailIntakeJob < ApplicationJob
       body = client.content(msg.id, fallback: msg.preview)
       result = TravelEmailClassifier.new(from: msg.from, subject: msg.subject, body: body).result
 
-      InboundEmail.create!(
+      inbound = InboundEmail.create!(
         message_id: msg.message_id, from_address: msg.from, subject: msg.subject,
         body: body, received_at: msg.received_at, score: result.score, signals: result.signals
       )
+
+      # 1) Deterministic: a booking already recorded (its confirmation is on a
+      # segment) clears itself.
+      if (dup = inbound.duplicate_trip)
+        inbound.resolve_as_duplicate!(dup)
+        next
+      end
+
+      # 2) LLM triage: propose the segment + where it belongs, and auto-file the
+      # high-confidence existing-trip matches. New-trip/extend/low-confidence
+      # wait in the inbox for review.
+      triager = TripTriager.new(inbound)
+      next unless triager.available?
+      if (proposal = triager.triage)
+        inbound.apply_proposal!(proposal)
+        inbound.auto_accept! if inbound.auto_acceptable?
+      end
     end
   end
 end
