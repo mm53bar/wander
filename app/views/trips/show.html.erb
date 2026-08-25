@@ -39,3 +39,22 @@
   <% end %>
   <p style="margin-top:1rem;"><%= link_to "+ Add segment", new_trip_segment_path(@trip), class: "btn-primary" %></p>
 </div>
+
+<% if @trip.raw_emails.any? %>
+  <div class="card">
+    <h2 class="section-label" style="margin-top:0;">Source emails</h2>
+    <% @trip.raw_emails.order(:received_at).each do |email| %>
+      <div style="border-top:1px solid var(--border); padding:0.6rem 0;">
+        <div class="raw-email-header">
+          <strong><%= email.subject %></strong><br>
+          <%= email.from_address %> &nbsp;·&nbsp; <%= email.received_at&.strftime("%Y-%m-%d %H:%M") %>
+        </div>
+        <% if llm_available? %>
+          <p style="margin-top:0.4rem;">
+            <%= link_to "✨ Draft segment from this", draft_segment_path(email), class: "btn-outline" %>
+          </p>
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+<% end %>

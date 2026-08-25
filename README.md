@@ -19,6 +19,7 @@ auto-archived once the trip is over.
 - Source-email ingestion with automatic archiving after a trip ends
 - Travel-email intake: scans a shared mailbox (via the Bichon archiver), identifies booking emails, and files them for review
 - Managed **safe-sender list** (Settings page) drives travel detection — matched in the body too, for forwarded bookings
+- Draft an itinerary segment from a booking email with an LLM (review before saving; OpenAI-compatible, e.g. Ollama)
 - JSON API alongside the HTML UI for programmatic ingestion
 - Installable PWA with offline-friendly caching
 
@@ -57,6 +58,9 @@ secrets (see `docs/adr/20260823-secrets-from-env.md`).
 | `BICHON_API_TOKEN` | for email intake | Bearer token for Bichon |
 | `BICHON_ACCOUNT_ID` | for email intake | Bichon account id of the shared inbox to scan |
 | `EMAIL_INTAKE_LOOKBACK_DAYS` | no (defaults `30`) | How far back each intake run scans |
+| `LLM_BASE_URL` | for AI drafting | OpenAI-compatible chat endpoint (e.g. a local Ollama `/v1`) |
+| `LLM_MODEL` | for AI drafting | Model name (local or a `-cloud` model) |
+| `LLM_API_KEY` | no | Bearer token, if the endpoint needs one |
 
 There is **no authentication** by design (`docs/adr/20260823-no-auth-needed.md`),
 so only run it somewhere that isn't publicly reachable — behind an

@@ -74,6 +74,26 @@ class SegmentsController < ApplicationController
     redirect_to edit_trip_path(trip), notice: "Split into a new trip — set its details."
   end
 
+  # Propose a segment from a stored source email (LLM), rendered in the segment
+  # form for review before saving. Degrades to manual entry if unavailable.
+  def draft_from_email
+    email = RawEmail.find(params[:id])
+    @trip = email.trip
+    parser = BookingParser.new(email, @trip)
+    unless parser.available?
+      redirect_to(@trip, alert: "AI drafting isn't configured.") and return
+    end
+
+    attrs = parser.segment_attrs
+    if attrs
+      @segment = @trip.segments.new(attrs)
+      @drafted = true
+      render "segments/new"
+    else
+      redirect_to @trip, alert: "Couldn't draft a segment from that email — add it manually."
+    end
+  end
+
   private
 
   def segment_params

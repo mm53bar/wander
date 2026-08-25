@@ -15,4 +15,9 @@ module ApplicationHelper
   def trip_date_range(trip)
     "#{trip.start_date.iso8601} – #{trip.end_date.iso8601}"
   end
+  # Whether LLM-backed features (segment drafting) should be offered.
+  def llm_available?
+    @llm_available = LlmClient.from_env.configured? if @llm_available.nil?
+    @llm_available
+  end
 end

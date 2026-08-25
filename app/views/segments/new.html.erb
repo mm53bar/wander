@@ -1,6 +1,11 @@
 <% content_for :title, "Add segment" %>
 <p class="crumb"><%= link_to "← #{@trip.name}", trip_path(@trip) %></p>
-<h1 class="page-title">Add segment</h1>
+<h1 class="page-title"><%= @drafted ? "Review drafted segment" : "Add segment" %></h1>
+<% if @drafted %>
+  <p class="flash flash-notice" style="margin:0 0 1rem;">
+    Drafted from the email by AI — check the details (especially dates/times) before saving.
+  </p>
+<% end %>
 <div class="card">
   <%= render "segments/form", segment: @segment,
         form_url: trip_segments_path(@trip), submit_label: "Add segment" %>
