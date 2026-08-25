@@ -50,11 +50,35 @@ class SegmentsController < ApplicationController
     end
   end
 
+  # Repoint a segment to another trip.
+  def move
+    @segment = Segment.find(params[:id])
+    @trips = Trip.where.not(id: @segment.trip_id).order(start_date: :desc)
+  end
+
+  def relocate
+    @segment = Segment.find(params[:id])
+    if params[:target] == "new"
+      trip = @segment.split_into_new_trip!(name: params[:new_name])
+      redirect_to edit_trip_path(trip), notice: "Split into a new trip — set its details."
+    else
+      trip = Trip.find(params[:trip_id])
+      @segment.move_to(trip)
+      redirect_to trip, notice: "Moved to #{trip.name}."
+    end
+  end
+
+  def split
+    @segment = Segment.find(params[:id])
+    trip = @segment.split_into_new_trip!
+    redirect_to edit_trip_path(trip), notice: "Split into a new trip — set its details."
+  end
+
   private
 
   def segment_params
     permitted = params.require(:segment).permit(
-      :kind, :emoji, :summary, :starts_at, :ends_at, :starts_at_label, :ends_at_label,
+      :trip_id, :kind, :emoji, :summary, :starts_at, :ends_at, :starts_at_label, :ends_at_label,
       :location, :confirmation, links: [ :label, :url ]
     )
     # A form submits links as a hash of index => {label, url}; the JSON API

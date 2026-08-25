@@ -1,0 +1,27 @@
+<% content_for :title, "Move segment" %>
+<p class="crumb"><%= link_to "← #{@segment.trip.name}", trip_path(@segment.trip) %></p>
+<h1 class="page-title">Move segment</h1>
+
+<div class="card">
+  <p class="subtle" style="margin-bottom:0.75rem;">
+    <span class="seg-emoji"><%= @segment.emoji %></span>
+    <strong><%= @segment.summary %></strong>
+    <% if @segment.confirmation.present? %> · <span class="seg-conf"><%= @segment.confirmation %></span><% end %>
+  </p>
+
+  <%= form_with url: relocate_segment_path(@segment), method: :patch, class: "stack" do %>
+    <div class="field">
+      <label><input type="radio" name="target" value="existing" checked> Move to an existing trip</label>
+      <%= select_tag :trip_id, options_from_collection_for_select(@trips, :id, ->(t) { "#{t.name} (#{trip_date_range(t)})" }) %>
+    </div>
+    <div class="field">
+      <label><input type="radio" name="target" value="new"> Split into a new trip</label>
+      <%= text_field_tag :new_name, @segment.summary, placeholder: "New trip name" %>
+      <span class="subtle">Dates seed from this segment; refine them next.</span>
+    </div>
+    <div class="form-actions">
+      <%= submit_tag "Move", class: "btn-primary" %>
+      <%= link_to "Cancel", trip_path(@segment.trip) %>
+    </div>
+  <% end %>
+</div>

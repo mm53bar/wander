@@ -36,6 +36,24 @@ class Segment < ApplicationRecord
     end
   end
 
+  # Reassign this segment to another trip.
+  def move_to(trip)
+    update!(trip: trip)
+  end
+
+  # Split this segment out into a brand-new trip of its own, seeded from the
+  # segment's own date (fallbacks: its instant, then the current trip's dates).
+  # Used to separate bookings that were lumped into one trip.
+  def split_into_new_trip!(name: nil)
+    on = local_date || starts_at&.to_date || trip.start_date
+    new_trip = Trip.create!(
+      name: name.presence || summary.to_s.truncate(60).presence || "New trip",
+      start_date: on, end_date: (ends_at&.to_date || on)
+    )
+    update!(trip: new_trip)
+    new_trip
+  end
+
   private
 
   def assign_default_emoji

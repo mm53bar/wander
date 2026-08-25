@@ -34,6 +34,7 @@
     <% if manage %>
       <div class="seg-actions">
         <%= link_to "Edit", edit_segment_path(segment) %>
+        <%= link_to "Move", move_segment_path(segment) %>
         <%= button_to "Delete", segment_path(segment), method: :delete,
               class: "btn-danger", form: { data: { turbo_confirm: "Delete this segment?" } } %>
       </div>

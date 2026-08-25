@@ -12,6 +12,12 @@ Rails.application.routes.draw do
   resources :segments, only: [ :edit, :update, :destroy ] do
     # One QR image per segment (a booking pass, boarding QR, etc.).
     resource :qr_code, only: [ :create, :destroy ]
+    # Repoint a segment to a different trip, or split it into a new one.
+    member do
+      get :move
+      patch :relocate
+      post :split
+    end
   end
 
   # wander's own inbox of travel-related mail captured from the shared casey@

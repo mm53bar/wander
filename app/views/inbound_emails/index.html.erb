@@ -2,8 +2,12 @@
 
 <h1 class="page-title">Travel inbox</h1>
 <p class="subtle" style="margin-bottom:1rem;">
-  Messages the intake identified as travel-related from the shared mailbox.
-  File one onto a trip to keep it as a source email, or dismiss a false positive.
+  Messages the intake identified as travel-related. Confirm the suggested trip,
+  pick a different one, or dismiss a false positive.
+  <% if @auto_resolved.positive? %>
+    <br><em><%= pluralize(@auto_resolved, "message") %> auto-matched to an existing
+    booking (confirmation already on a trip) and cleared.</em>
+  <% end %>
 </p>
 
 <% if @inbound_emails.none? %>
@@ -11,6 +15,7 @@
 <% end %>
 
 <% @inbound_emails.each do |email| %>
+  <% suggested = @suggestions[email] %>
   <div class="card">
     <div class="raw-email-header">
       <strong><%= email.subject.presence || "(no subject)" %></strong><br>
@@ -19,9 +24,7 @@
 
     <% if email.signals.any? %>
       <p style="margin:0.4rem 0;">
-        <% email.signals.first(6).each do |sig| %>
-          <span class="seg-conf"><%= sig %></span>
-        <% end %>
+        <% email.signals.first(6).each do |sig| %><span class="seg-conf"><%= sig %></span> <% end %>
       </p>
     <% end %>
 
@@ -30,17 +33,18 @@
       <div class="raw-email-body"><pre><%= truncate(email.body.to_s, length: 4000) %></pre></div>
     </details>
 
-    <div class="form-actions" style="flex-wrap:wrap;">
-      <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row", style: "align-items:flex-end;gap:0.5rem;margin:0;" do %>
-        <div class="field" style="min-width:14rem;">
-          <label>File to trip</label>
-          <%= select_tag :trip_id,
-                options_from_collection_for_select(@trips, :id, :name),
-                include_blank: "Choose a trip…", required: true %>
-        </div>
-        <%= submit_tag "File", class: "btn-primary" %>
-      <% end %>
-      <%= button_to "Dismiss", ignore_inbound_email_path(email), method: :post, class: "btn-outline" %>
-    </div>
+    <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row", style: "align-items:flex-end; gap:0.5rem; margin:0;" do %>
+      <div class="field" style="min-width:15rem;">
+        <label>
+          Trip
+          <% if suggested %><span class="subtle">— suggested from dates</span><% end %>
+        </label>
+        <%= select_tag :trip_id,
+              options_from_collection_for_select(@trips, :id, :name, suggested&.id),
+              include_blank: "Choose a trip…", required: true %>
+      </div>
+      <%= submit_tag (suggested ? "Confirm" : "File"), class: "btn-primary" %>
+      <%= link_to "Dismiss", ignore_inbound_email_path(email), data: { turbo_method: :post }, class: "btn-outline" %>
+    <% end %>
   </div>
 <% end %>

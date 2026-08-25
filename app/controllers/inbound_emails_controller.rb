@@ -1,7 +1,19 @@
 class InboundEmailsController < ApplicationController
   def index
-    @inbound_emails = InboundEmail.received
+    # Auto-resolve anything already recorded (a segment's confirmation number
+    # appears in the email) so re-captured/forwarded copies clear themselves.
+    @auto_resolved = 0
+    InboundEmail.received.each do |email|
+      if (trip = email.duplicate_trip)
+        email.resolve_as_duplicate!(trip)
+        @auto_resolved += 1
+      end
+    end
+
     @trips = Trip.order(start_date: :desc)
+    # For each remaining email, the best-guess trip to default the picker to.
+    @inbound_emails = InboundEmail.received.to_a
+    @suggestions = @inbound_emails.index_with(&:suggested_trip)
   end
 
   # File this captured email onto a trip: it becomes one of that trip's source

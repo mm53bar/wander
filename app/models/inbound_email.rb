@@ -6,7 +6,7 @@
 class InboundEmail < ApplicationRecord
   belongs_to :trip, optional: true
 
-  STATUSES = %w[received filed ignored].freeze
+  STATUSES = %w[received filed ignored duplicate].freeze
 
   validates :message_id, presence: true, uniqueness: true
   validates :received_at, presence: true
@@ -28,5 +28,21 @@ class InboundEmail < ApplicationRecord
 
   def ignore!
     update!(status: "ignored")
+  end
+  def email_text
+    "#{subject}\n#{body}"
+  end
+
+  def duplicate_trip
+    TripMatcher.new(email_text).duplicate_trip
+  end
+
+  def suggested_trip
+    TripMatcher.new(email_text).suggested_trip
+  end
+
+  # Mark as an already-recorded duplicate of a trip we already have.
+  def resolve_as_duplicate!(trip)
+    update!(trip: trip, status: "duplicate")
   end
 end
