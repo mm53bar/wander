@@ -29,3 +29,24 @@ services:
       TZ: UTC
       # Rails session/cookie signing key (required). Generate with: openssl rand -hex 64
       SECRET_KEY_BASE: replace-with-64-byte-hex
+      # Public base URL, used for links in notice emails.
+      APP_URL: https://wander.example.com
+
+      # Email intake. wander polls INTAKE_MAILBOX, captures bookings, and MOVES
+      # the ones it claims into INTAKE_ARCHIVE_MAILBOX (created if absent) so the
+      # source folder is left holding only mail that isn't wander's. It never
+      # marks anything read. Leave the IMAP vars unset to disable intake.
+      IMAP_HOST: imap.example.com
+      IMAP_PORT: "993"
+      IMAP_USERNAME: intake@example.com
+      IMAP_PASSWORD: replace-with-imap-app-password
+      INTAKE_MAILBOX: INBOX
+      INTAKE_ARCHIVE_MAILBOX: Wander
+
+      # Outbound notices: when a captured booking can't be turned into a segment,
+      # wander replies in that email's thread. Only to addresses on the Settings
+      # page's reply-to list, which ships empty. Unset SMTP_ADDRESS to disable.
+      # MAILER_FROM_ADDRESS must be a sender your relay is allowed to send as.
+      SMTP_ADDRESS: smtp.example.com
+      SMTP_PORT: "2500"
+      MAILER_FROM_ADDRESS: wander@example.com

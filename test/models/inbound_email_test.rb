@@ -56,14 +56,31 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_equal new_end, trips(:lisbon).reload.end_date
   end
 
-  test "auto_acceptable? only for high-confidence within an existing trip" do
+  test "auto_acceptable? only for high-confidence against an existing trip" do
     inbound = inbound_emails(:pending_flight)
     propose(inbound)
     assert inbound.auto_acceptable?
-    propose(inbound, extends_trip: true)
+    propose(inbound, confidence: "medium")
     assert_not inbound.auto_acceptable?
     propose(inbound, trip_id: nil, new_trip: { "name" => "X", "start_date" => "2027-01-01", "end_date" => "2027-01-02" })
     assert_not inbound.auto_acceptable?
+  end
+
+  test "auto_acceptable? allows an extend, but only with an end date to extend to" do
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_end_date: (trips(:lisbon).end_date + 2).to_s)
+    assert inbound.auto_acceptable?
+    propose(inbound, extends_trip: true, suggested_end_date: nil)
+    assert_not inbound.auto_acceptable?
+  end
+
+  test "auto_accept! extends the trip so it can't end before its own last segment" do
+    new_end = trips(:lisbon).end_date + 2
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_end_date: new_end.to_s)
+    inbound.auto_accept!
+    assert_equal new_end, trips(:lisbon).reload.end_date
+    assert inbound.reload.auto_filed
   end
 
   test "undo_auto_file! deletes the segment and returns to the inbox" do
@@ -74,5 +91,17 @@ class InboundEmailTest < ActiveSupport::TestCase
     inbound.undo_auto_file!
     assert_not Segment.exists?(seg_id)
     assert_equal "received", inbound.reload.status
+  end
+
+  test "undo_auto_file! puts back a trip end date the extend moved" do
+    original_end = trips(:lisbon).end_date
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_end_date: (original_end + 2).to_s)
+    inbound.auto_accept!
+    assert_equal original_end + 2, trips(:lisbon).reload.end_date
+
+    inbound.undo_auto_file!
+    assert_equal original_end, trips(:lisbon).reload.end_date
+    assert_nil inbound.reload.prior_trip_end_date
   end
 end

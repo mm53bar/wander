@@ -2,6 +2,8 @@ class SafeSendersController < ApplicationController
   def index
     @safe_senders = SafeSender.all
     @safe_sender = SafeSender.new
+    @allowed_senders = AllowedSender.all
+    @allowed_sender = AllowedSender.new
   end
 
   def create
@@ -10,6 +12,8 @@ class SafeSendersController < ApplicationController
       redirect_to safe_senders_path, notice: "Added #{@safe_sender.value}."
     else
       @safe_senders = SafeSender.all
+      @allowed_senders = AllowedSender.all
+      @allowed_sender = AllowedSender.new
       render :index, status: :unprocessable_entity
     end
   end

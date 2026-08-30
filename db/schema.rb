@@ -10,7 +10,16 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_25_000004) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_29_000003) do
+  create_table "allowed_senders", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.string "address", null: false
+    t.datetime "created_at", null: false
+    t.string "note"
+    t.datetime "updated_at", null: false
+    t.index ["address"], name: "index_allowed_senders_on_address", unique: true
+  end
+
   create_table "inbound_emails", force: :cascade do |t|
     t.boolean "auto_filed", default: false, null: false
     t.text "body"
@@ -20,11 +29,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_25_000004) do
     t.boolean "extends_trip", default: false, null: false
     t.string "from_address"
     t.string "message_id", null: false
+    t.datetime "notified_at"
+    t.date "prior_trip_end_date"
     t.json "proposed_new_trip"
     t.json "proposed_segment"
     t.integer "proposed_trip_id"
     t.text "reason"
     t.datetime "received_at", null: false
+    t.text "references"
     t.integer "score", default: 0, null: false
     t.json "signals", default: [], null: false
     t.string "status", default: "received", null: false

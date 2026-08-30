@@ -8,17 +8,19 @@ class BookingParser
     forwarded confirmation). Return ONLY a JSON object with these keys:
       kind            short lowercase type: flight, hotel, ferry, train,
                       car_rental, campsite, activity, check_in, check_out, note
-      summary         one concise line naming the booking
-      starts_at       ISO8601 datetime, or null
-      ends_at         ISO8601 datetime, or null
-      starts_at_label the email's own wording for the start time, or null
-      ends_at_label   the email's own wording for the end time, or null
-      location        place/address, or null
-      confirmation    booking/confirmation number, or null
-      links           array of {label, url}, or []
-    Use the trip context to resolve relative or year-ambiguous dates. Preserve
-    the email's original time wording in the *_label fields. Use null for
-    anything not clearly present. Return JSON only, no commentary.
+      summary          one concise line naming the booking
+      starts_at_local  local wall-clock "YYYY-MM-DDTHH:MM", or null
+      starts_time_zone IANA zone for the start, or null
+      ends_at_local    local wall-clock "YYYY-MM-DDTHH:MM", or null
+      ends_time_zone   IANA zone for the end, or null
+      starts_at_label  the email's own wording for the start time, or null
+      ends_at_label    the email's own wording for the end time, or null
+      location         place/address, or null
+      confirmation     booking/confirmation number, or null
+      links            array of {label, url}, or []
+    Use the trip context to resolve relative or year-ambiguous dates.
+    #{SegmentTime::PROMPT}
+    Return JSON only, no commentary.
   PROMPT
 
   def initialize(email, trip, client: LlmClient.from_env)
@@ -36,11 +38,12 @@ class BookingParser
     data = @client.complete_json(system: SYSTEM, user: user_prompt)
     return nil unless data.is_a?(Hash)
 
+    times = SegmentTime.from_llm(data)
     {
       kind: data["kind"].presence || "note",
       summary: data["summary"].presence || @email.subject.presence || "Booking",
-      starts_at: data["starts_at"].presence,
-      ends_at: data["ends_at"].presence,
+      starts_at: times[:starts_at],
+      ends_at: times[:ends_at],
       starts_at_label: data["starts_at_label"].presence,
       ends_at_label: data["ends_at_label"].presence,
       location: data["location"].presence,

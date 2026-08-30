@@ -20,6 +20,17 @@ no secrets, no network-specific names in commits.**
   ordering + the calendar) and a verbatim `*_label` string (the booking's own
   wording, for display). See `docs/adr/20260823-store-instant-and-label.md`.
   `type` is deliberately named `kind` (Active Record reserves `type` for STI).
+- **The LLM never computes an instant.** It returns wall-clock + an IANA zone;
+  `SegmentTime` resolves it, and leaves a segment **undated** rather than guess.
+  Don't "helpfully" ask the model for an ISO timestamp again —
+  `docs/adr/20260829-deterministic-segment-times.md`.
+- **Intake shares a mailbox with other apps.** Never set `\Seen`; only ever move
+  messages wander itself captured, and only into wander's own folder. Capture
+  before moving. See `docs/adr/20260829-imap-intake-direct-not-bichon.md`, which
+  also records why there is no per-app `travel@` intake address.
+- **`AllowedSender` is not `SafeSender`.** `SafeSender` is travel providers,
+  matched anywhere in a message including a forwarded body. `AllowedSender` is
+  who wander may *reply* to, matched on the `From` header only. Never merge them.
 
 ## Shape
 
@@ -27,6 +38,10 @@ no secrets, no network-specific names in commits.**
   `links` json), `QrCode` (base64 PNG in a text column), `RawEmail`.
   `IcsCalendar` builds the feed; `ArchivePastEmailsJob` (daily, `config/recurring.yml`)
   discards emails once a trip has ended.
+- Intake: `ImapMailbox` (IMAP read + move) → `EmailIntakeJob` →
+  `TravelEmailClassifier` → `InboundEmail` → `TripTriager` (LLM) →
+  auto-file or the Inbox. Dead ends go to `IntakeNotifier` → `IntakeMailer`,
+  which replies in the original thread. `bin/rails intake:preview` dry-runs it.
 - HTML UI at `/` (index) and `/trips/:id` (manage), plus a JSON API on the same
   routes — respond_to picks the format from `Accept`/`.json`.
 - The calendar feed is `/calendar.ics`.

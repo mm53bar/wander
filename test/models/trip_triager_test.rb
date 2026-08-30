@@ -2,9 +2,14 @@ require "test_helper"
 
 class TripTriagerTest < ActiveSupport::TestCase
   class Fake
+    attr_reader :user_prompt
+
     def initialize(data) = @data = data
     def configured? = true
-    def complete_json(**) = @data
+    def complete_json(**kwargs)
+      @user_prompt = kwargs[:user]
+      @data
+    end
   end
 
   test "maps triage output to a proposal" do
@@ -27,5 +32,48 @@ class TripTriagerTest < ActiveSupport::TestCase
   test "not available without a configured client" do
     unconf = Class.new { def configured? = false }.new
     assert_not TripTriager.new(inbound_emails(:pending_flight), client: unconf).available?
+  end
+
+  # The email's dates drive the hint, so build bodies relative to the lisbon
+  # fixture's span (20..25 days out) rather than hard-coding calendar dates.
+  def email_dated(*days_out)
+    inbound_emails(:pending_flight).tap do |e|
+      e.body = "Booking dates: #{days_out.map { |d| d.days.from_now.to_date.iso8601 }.join(' to ')}."
+    end
+  end
+
+  def prompt_for(email)
+    fake = Fake.new("segment" => { "kind" => "x" }, "assignment" => { "confidence" => "low" })
+    TripTriager.new(email, client: fake).triage
+    fake.user_prompt
+  end
+
+  test "prompt carries a DATE MATCH naming the trip the dates fall inside" do
+    prompt = prompt_for(email_dated(21, 23))
+    assert_match(/DATE MATCH: 2 of the email's dates/, prompt)
+    assert_match(/trip id=#{trips(:lisbon).id} "Lisbon City Break"/, prompt)
+    assert_no_match(/EXTENDS case/, prompt)
+  end
+
+  test "prompt flags an EXTENDS case when the booking runs past the trip's end" do
+    last = 27.days.from_now.to_date
+    prompt = prompt_for(email_dated(24, 27))
+    assert_match(/trip id=#{trips(:lisbon).id}/, prompt)
+    assert_match(/treat it as an EXTENDS case with suggested_end_date=#{last}/, prompt)
+  end
+
+  test "no DATE MATCH when the email has no dates in any trip's span" do
+    assert_no_match(/DATE MATCH/, prompt_for(email_dated(300)))
+    assert_no_match(/DATE MATCH/, prompt_for(inbound_emails(:pending_flight)))
+  end
+
+  test "a finished trip never wins the DATE MATCH" do
+    assert_equal trips(:kyoto).start_date, 90.days.ago.to_date, "fixture moved"
+    assert_no_match(/DATE MATCH/, prompt_for(email_dated(-85)))
+
+    # A booking date inside the finished trip must not outrank the upcoming one.
+    prompt = prompt_for(email_dated(-85, 21, 23))
+    assert_match(/trip id=#{trips(:lisbon).id}/, prompt)
+    assert_no_match(/trip id=#{trips(:kyoto).id}\b/, prompt)
   end
 end

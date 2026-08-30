@@ -9,14 +9,18 @@ class TripTriager
     each with its segments (type, date, location), and one booking EMAIL.
 
     Return ONLY JSON:
-    {"segment":{"kind","summary","starts_at","ends_at","starts_at_label",
-      "ends_at_label","location","confirmation","links":[{"label","url"}]},
+    {"segment":{"kind","summary","starts_at_local","starts_time_zone",
+      "ends_at_local","ends_time_zone","starts_at_label","ends_at_label",
+      "location","confirmation","links":[{"label","url"}]},
      "assignment":{"trip_id":<existing id or null>,"extends_trip":true|false,
       "suggested_end_date":<ISO date or null>,
       "new_trip":{"name","start_date","end_date"}|null,
       "confidence":"high|medium|low","reason":"one sentence"}}
 
     Choosing a trip:
+    - A DATE MATCH line, when present, is a deterministic computation over the
+      email's dates. Trust it over your own reading of them: attach to the trip it
+      names unless that trip's location is clearly inconsistent with the booking.
     - PREFER attaching to an existing trip. A booking belongs to a trip when its
       dates fall within, or are immediately adjacent to (starting on or near the
       trip's last day), that trip's span AND its location is consistent with the
@@ -26,8 +30,8 @@ class TripTriager
       suggested_end_date=the booking's end date.
     - Propose a NEW trip only when the booking is a clearly separate journey: a
       different region, or a distinctly different time with no continuity.
-    Times ISO8601; preserve the email's wording in the *_label fields; null for
-    unknowns. JSON only.
+    #{SegmentTime::PROMPT}
+    JSON only.
   PROMPT
 
   def initialize(email, client: LlmClient.from_env, trips: nil)
@@ -68,11 +72,17 @@ class TripTriager
     { "name" => nt["name"], "start_date" => nt["start_date"], "end_date" => nt["end_date"] }
   end
 
+  # The wall-clock times become instants here, at the boundary where LLM output
+  # enters the system, so everything downstream sees a real instant or nil. The
+  # *_at_local values are kept so an unresolved zone stays distinguishable from a
+  # booking that simply states no time (see InboundEmail#proposed_start_resolved?).
   def normalize_segment(seg)
+    times = SegmentTime.from_llm(seg)
     {
       "kind" => seg["kind"].presence || "note",
       "summary" => seg["summary"].presence || @email.subject.presence || "Booking",
-      "starts_at" => seg["starts_at"].presence, "ends_at" => seg["ends_at"].presence,
+      "starts_at" => times[:starts_at]&.iso8601, "ends_at" => times[:ends_at]&.iso8601,
+      "starts_at_local" => seg["starts_at_local"].presence, "ends_at_local" => seg["ends_at_local"].presence,
       "starts_at_label" => seg["starts_at_label"].presence, "ends_at_label" => seg["ends_at_label"].presence,
       "location" => seg["location"].presence, "confirmation" => seg["confirmation"].presence,
       "links" => Array(seg["links"]).select { |h| h.is_a?(Hash) && h["url"].present? }
@@ -82,7 +92,32 @@ class TripTriager
   def user_prompt
     trips = @trips.map { |t| trip_block(t) }.join("\n")
     body = @email.body.to_s[0, 6000]
-    "EXISTING TRIPS:\n#{trips}\n\nEMAIL:\nSubject: #{@email.subject}\nFrom: #{@email.from_address}\n\n#{body}"
+    email = "EMAIL:\nSubject: #{@email.subject}\nFrom: #{@email.from_address}\n\n#{body}"
+    [ "EXISTING TRIPS:\n#{trips}", date_hint, email ].compact.join("\n\n")
+  end
+
+  # TripMatcher's date read, handed to the model rather than left for it to work
+  # out: a booking starting on a trip's last day reads as "no overlap" to the LLM
+  # often enough that it proposes a spurious new trip.
+  def date_hint
+    dates = TripMatcher.new("#{@email.subject}\n#{@email.body}").extracted_dates
+    return nil if dates.empty?
+
+    # Only trips that haven't ended: an email's booking-date line ("Booking Date
+    # Sunday, August 23") lands inside whatever trip was running that week, and a
+    # finished trip must not out-score the one the booking is actually for.
+    candidates = @trips.reject { |t| t.end_date < Date.current }
+    trip, hits = candidates.map { |t| [ t, dates.count { |d| (t.start_date..t.end_date).cover?(d) } ] }
+                           .max_by { |(_, n)| n }
+    return nil unless hits.to_i.positive?
+
+    last = dates.max
+    if last > trip.end_date
+      tail = " The booking runs to #{last}, past that trip's end date (#{trip.end_date}) — " \
+             "treat it as an EXTENDS case with suggested_end_date=#{last}."
+    end
+    "DATE MATCH: #{hits} of the email's dates (#{dates.sort.join(', ')}) fall inside " \
+      "trip id=#{trip.id} \"#{trip.name}\" [#{trip.start_date}..#{trip.end_date}].#{tail}"
   end
 
   def trip_block(t)

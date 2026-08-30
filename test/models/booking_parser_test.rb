@@ -13,8 +13,9 @@ class BookingParserTest < ActiveSupport::TestCase
 
   test "maps the LLM JSON to segment attributes" do
     attrs = parse(
-      "kind" => "campsite", "summary" => "Rathtrevor Beach", "starts_at" => "2026-09-08T00:00:00",
-      "ends_at" => "2026-09-10T00:00:00", "starts_at_label" => "Arriving Sep 8",
+      "kind" => "campsite", "summary" => "Rathtrevor Beach",
+      "starts_at_local" => "2026-09-08T13:00", "starts_time_zone" => "America/Vancouver",
+      "ends_at_local" => "2026-09-10T11:00", "starts_at_label" => "Arriving Sep 8",
       "location" => "Rathtrevor Beach Provincial Park", "confirmation" => "BCIN27-11143815B1",
       "links" => [ { "label" => "Details", "url" => "https://example.com" }, { "url" => "" } ]
     )
@@ -22,6 +23,13 @@ class BookingParserTest < ActiveSupport::TestCase
     assert_equal "BCIN27-11143815B1", attrs[:confirmation]
     assert_equal 1, attrs[:links].size # blank-url link dropped
     assert_equal "Details", attrs[:links].first["label"]
+    assert_equal "2026-09-08T13:00:00-07:00", attrs[:starts_at].iso8601
+    assert_equal "2026-09-10T11:00:00-07:00", attrs[:ends_at].iso8601
+  end
+
+  test "leaves the segment undated rather than guessing an unresolvable zone" do
+    attrs = parse("kind" => "campsite", "starts_at_local" => "2026-09-08T13:00", "location" => "Somewhere unlisted")
+    assert_nil attrs[:starts_at]
   end
 
   test "falls back sensibly on sparse data" do

@@ -57,17 +57,25 @@ Rails.application.configure do
   # Set this to true and configure the email server for immediate delivery to raise delivery errors.
   # config.action_mailer.raise_delivery_errors = false
 
-  # Set host to be used by links generated in mailer templates.
-  config.action_mailer.default_url_options = { host: "example.com" }
+  # Host for links in mailer templates. APP_URL is optional: unset, mail still
+  # sends, the inbox link just points at the placeholder.
+  app_url = URI.parse(ENV.fetch("APP_URL", "https://wander.example.com"))
+  config.action_mailer.default_url_options = {
+    host: app_url.host, protocol: app_url.scheme, port: app_url.port
+  }
 
-  # Specify outgoing SMTP server. Remember to add smtp/* credentials via bin/rails credentials:edit.
-  # config.action_mailer.smtp_settings = {
-  #   user_name: Rails.application.credentials.dig(:smtp, :user_name),
-  #   password: Rails.application.credentials.dig(:smtp, :password),
-  #   address: "smtp.example.com",
-  #   port: 587,
-  #   authentication: :plain
-  # }
+  # Outbound goes through an SMTP relay (no credentials — a LAN relay that
+  # accepts unauthenticated mail from trusted hosts). `enable_starttls_auto:
+  # false` skips STARTTLS for relays with no or self-signed TLS; adjust for your
+  # own relay. With SMTP_ADDRESS unset, IntakeMailer reports itself
+  # unconfigured and no notices are sent.
+  if ENV["SMTP_ADDRESS"].present?
+    config.action_mailer.smtp_settings = {
+      address: ENV.fetch("SMTP_ADDRESS"),
+      port: ENV.fetch("SMTP_PORT", 2500).to_i,
+      enable_starttls_auto: false
+    }
+  end
 
   # Enable locale fallbacks for I18n (makes lookups for any locale fall back to
   # the I18n.default_locale when a translation cannot be found).

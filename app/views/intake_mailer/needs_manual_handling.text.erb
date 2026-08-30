@@ -1,0 +1,11 @@
+<%= @reason %>
+
+It's waiting in wander's inbox, where you can file it to a trip or add the
+segment by hand:
+
+  <%= @inbox_url %>
+
+Subject:  <%= @inbound.subject %>
+Received: <%= @inbound.received_at&.strftime("%Y-%m-%d %H:%M") %>
+
+Nothing else will be sent about this message.

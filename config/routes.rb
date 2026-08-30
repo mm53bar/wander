@@ -37,7 +37,9 @@ Rails.application.routes.draw do
 
   # Settings — the managed list of travel-provider senders the classifier trusts.
   resources :safe_senders, only: [ :index, :create, :update, :destroy ]
-  get "settings", to: "safe_senders#index"
+  # Addresses wander will reply to about a booking it couldn't process.
+  resources :allowed_senders, only: [ :create, :update, :destroy ]
+  get "settings", to: "safe_senders#index", as: :settings
 
   # Draft an itinerary segment from a stored source email via the LLM.
   get "raw_emails/:id/draft_segment", to: "segments#draft_from_email", as: :draft_segment

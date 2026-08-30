@@ -46,14 +46,40 @@ class InboundEmail < ApplicationRecord
     proposed_segment.present?
   end
 
+  # False only when the model read a time off the booking but no zone could be
+  # established for it. A booking that states no time at all isn't a failure —
+  # some genuinely have none — so it must not trigger a notice.
+  def proposed_start_resolved?
+    segment = proposed_segment
+    return true unless segment.is_a?(Hash)
+    segment["starts_at_local"].blank? || segment["starts_at"].present?
+  end
+
+  # Intake synthesises "imap-<uid>" when a message carries no Message-ID header.
+  # That value must never reach In-Reply-To: it threads with nothing.
+  def threadable?
+    message_id.present? && !message_id.start_with?("imap-")
+  end
+
+  def bracketed_message_id
+    "<#{message_id.delete_prefix("<").delete_suffix(">")}>"
+  end
+
+  def reply_references
+    [ self[:references].presence, bracketed_message_id ].compact.join(" ")
+  end
+
   def proposed_trip
     Trip.find_by(id: proposed_trip_id)
   end
 
-  # High-confidence assignment to an existing trip that fits within it — safe to
-  # file without a human click (new-trip and extend cases stay for review).
+  # High-confidence assignment to an existing trip — safe to file without a human
+  # click. Extending that trip is allowed, but only when there's an end date to
+  # extend to: without one the trip would keep an end date that falls before the
+  # segment we just added. New-trip proposals still stay for review.
   def auto_acceptable?
-    confidence == "high" && proposed_trip_id.present? && !extends_trip && proposed_new_trip.blank?
+    return false unless confidence == "high" && proposed_trip_id.present? && proposed_new_trip.blank?
+    !extends_trip || suggested_end_date.present?
   end
 
   # Store an LLM triage proposal on this email.
@@ -72,22 +98,26 @@ class InboundEmail < ApplicationRecord
     raise ActiveRecord::RecordInvalid, self unless target
 
     segment = target.segments.create!(segment_attributes)
+    previous_end = nil
     if extend_dates && extends_trip && suggested_end_date && suggested_end_date > target.end_date
+      previous_end = target.end_date
       target.update!(end_date: suggested_end_date)
     end
-    update!(status: "filed", trip: target, created_segment_id: segment.id)
+    update!(status: "filed", trip: target, created_segment_id: segment.id, prior_trip_end_date: previous_end)
     segment
   end
 
   def auto_accept!
-    accept!(trip: proposed_trip, extend_dates: false)
+    accept!(trip: proposed_trip, extend_dates: true)
     update!(auto_filed: true)
   end
 
-  # Reverse an auto-file: delete the created segment and return to the inbox.
+  # Reverse an auto-file: delete the created segment, put back any trip end date
+  # the extend moved, and return to the inbox.
   def undo_auto_file!
     Segment.where(id: created_segment_id).destroy_all if created_segment_id
-    update!(status: "received", trip: nil, auto_filed: false, created_segment_id: nil)
+    trip&.update!(end_date: prior_trip_end_date) if prior_trip_end_date
+    update!(status: "received", trip: nil, auto_filed: false, created_segment_id: nil, prior_trip_end_date: nil)
   end
 
   private
