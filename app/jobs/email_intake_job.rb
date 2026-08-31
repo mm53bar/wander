@@ -12,15 +12,28 @@
 class EmailIntakeJob < ApplicationJob
   queue_as :default
 
-  def perform(mailbox: ImapMailbox.from_env)
+  # llm: injectable so tests can drive the unreachable / unusable cases.
+  def perform(mailbox: ImapMailbox.from_env, llm: LlmClient.from_env)
     return unless mailbox.configured?
+
+    @llm = llm
 
     mailbox.open do |session|
       session.each_message { |message| handle(session, message) }
     end
+
+    retry_awaiting_triage
   end
 
   private
+
+  # Intake never re-reads a message it has already claimed, so a booking captured
+  # while the LLM was unreachable would otherwise keep its empty proposal for
+  # good. Picked up again here on each pass until triage works or the attempts
+  # run out.
+  def retry_awaiting_triage
+    InboundEmail.awaiting_triage.each { |inbound| triage(inbound) }
+  end
 
   # One bad message must not strand the rest of the batch behind it.
   def handle(session, message)
@@ -66,11 +79,11 @@ class EmailIntakeJob < ApplicationJob
     # 2) LLM triage: propose the segment + where it belongs, and auto-file the
     # high-confidence existing-trip matches. New-trip and low-confidence ones
     # wait in the inbox for review.
-    triager = TripTriager.new(inbound)
-    return IntakeNotifier.new(inbound).unparseable! unless triager.available?
+    triager = TripTriager.new(inbound, client: @llm)
+    return unless triager.available? # LLM switched off: the inbox is the review surface
 
-    proposal = triager.triage
-    return IntakeNotifier.new(inbound).unparseable! if proposal.nil?
+    proposal = attempt_triage(inbound, triager)
+    return if proposal.nil?
 
     inbound.apply_proposal!(proposal)
     return IntakeNotifier.new(inbound).undated! unless inbound.proposed_start_resolved?
@@ -82,5 +95,21 @@ class EmailIntakeJob < ApplicationJob
       Rails.logger.error("EmailIntakeJob: auto-file failed for ##{inbound.id}: #{e.class}: #{e.message}")
       IntakeNotifier.new(inbound).failed!
     end
+  end
+
+  # Returns the proposal, or nil having counted the failure. A human only hears
+  # about it once the retries are spent, so a brief LLM outage never produces a
+  # "couldn't read this booking" notice for a booking that reads fine.
+  def attempt_triage(inbound, triager)
+    triager.triage.tap { |proposal| record_failed_triage(inbound) if proposal.nil? }
+  rescue LlmClient::Unavailable => e
+    Rails.logger.warn("EmailIntakeJob: triage unavailable for ##{inbound.id}: #{e.message}")
+    record_failed_triage(inbound)
+    nil
+  end
+
+  def record_failed_triage(inbound)
+    inbound.record_triage_attempt!
+    IntakeNotifier.new(inbound).unparseable! if inbound.triage_exhausted?
   end
 end

@@ -83,4 +83,43 @@ class EmailIntakeJobTest < ActiveJob::TestCase
       EmailIntakeJob.perform_now(mailbox: unconfigured)
     end
   end
+
+  # LLM stand-ins: one that's briefly unreachable, one that answers unusably.
+  class UnavailableLlm
+    def configured? = true
+    def complete_json(**) = raise(LlmClient::Unavailable, "Net::ReadTimeout")
+  end
+
+  class UselessLlm
+    def configured? = true
+    def complete_json(**) = nil
+  end
+
+  def travel_message(id = "t9@x")
+    msg(id, from: "no-reply@bcferries.com", subject: "Booking confirmation",
+        body: "Your itinerary and booking reference.")
+  end
+
+  test "a brief LLM outage doesn't notify, and leaves the booking to be retried" do
+    inbound = inbound_emails(:pending_flight)
+    inbound.update!(proposed_segment: nil, triage_attempts: 0)
+    AllowedSender.create!(address: AllowedSender.address_in(inbound.from_address))
+
+    EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UnavailableLlm.new)
+
+    assert_equal 1, inbound.reload.triage_attempts
+    assert_nil inbound.notified_at, "should not report a dead end on the first failure"
+    assert_includes InboundEmail.awaiting_triage, inbound, "should still be queued for retry"
+  end
+
+  test "gives up and reports only once the retries are spent" do
+    inbound = inbound_emails(:pending_flight)
+    inbound.update!(proposed_segment: nil, triage_attempts: InboundEmail::MAX_TRIAGE_ATTEMPTS - 1)
+
+    EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UselessLlm.new)
+
+    inbound.reload
+    assert_equal InboundEmail::MAX_TRIAGE_ATTEMPTS, inbound.triage_attempts
+    assert_not_includes InboundEmail.awaiting_triage, inbound, "exhausted, stop retrying"
+  end
 end

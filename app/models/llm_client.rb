@@ -8,6 +8,13 @@ require "uri"
 # public repo carries nothing real and an unconfigured deploy just disables the
 # LLM features. See docs/adr/20260825-llm-via-openai-compatible-endpoint.md.
 class LlmClient
+  # The endpoint couldn't be reached or errored server-side. Distinguished from a
+  # nil return (it answered, the answer was unusable) because only this one is
+  # worth retrying — and only the other one is worth telling a human about.
+  class Unavailable < StandardError; end
+
+  TRANSIENT = [ Net::OpenTimeout, Net::ReadTimeout, IOError, SystemCallError, SocketError ].freeze
+
   def self.from_env
     new(base_url: ENV["LLM_BASE_URL"], model: ENV["LLM_MODEL"], api_key: ENV["LLM_API_KEY"])
   end
@@ -39,10 +46,16 @@ class LlmClient
 
     res = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
                           open_timeout: 10, read_timeout: timeout) { |h| h.request(req) }
+    raise Unavailable, "HTTP #{res.code}" if res.code.to_i >= 500
     return nil unless res.code.to_i.between?(200, 299)
 
     content = JSON.parse(res.body).dig("choices", 0, "message", "content")
     content && JSON.parse(content)
+  rescue *TRANSIENT => e
+    Rails.logger.warn("LlmClient unavailable: #{e.class}: #{e.message}")
+    raise Unavailable, "#{e.class}: #{e.message}"
+  rescue Unavailable
+    raise
   rescue StandardError => e
     Rails.logger.error("LlmClient: #{e.class}: #{e.message}")
     nil

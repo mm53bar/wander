@@ -8,6 +8,17 @@ class InboundEmail < ApplicationRecord
 
   STATUSES = %w[received filed ignored duplicate].freeze
 
+  # Triage runs again on each intake pass until it works or the attempts run out.
+  # Only then is a dead end reported to a human — a single failure is far more
+  # often the LLM being briefly unreachable than a booking that can't be read.
+  MAX_TRIAGE_ATTEMPTS = 3
+
+  # Captured, but triage has never produced a proposal — the retry set.
+  scope :awaiting_triage, lambda {
+    where(status: "received", proposed_segment: nil)
+      .where(triage_attempts: ...MAX_TRIAGE_ATTEMPTS)
+  }
+
   validates :message_id, presence: true, uniqueness: true
   validates :received_at, presence: true
   validates :status, inclusion: { in: STATUSES }
@@ -44,6 +55,14 @@ class InboundEmail < ApplicationRecord
   end
   def proposal?
     proposed_segment.present?
+  end
+
+  def record_triage_attempt!
+    increment!(:triage_attempts)
+  end
+
+  def triage_exhausted?
+    triage_attempts >= MAX_TRIAGE_ATTEMPTS
   end
 
   # False only when the model read a time off the booking but no zone could be

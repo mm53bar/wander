@@ -6,9 +6,14 @@ class Segment < ApplicationRecord
 
   # A sensible default glyph per kind, used only when the caller doesn't supply
   # one. Unknown kinds fall back to the clipboard the DB column defaults to.
+  # Every kind the LLM prompts offer must appear here, or drafted segments come
+  # out as clipboards — `car_rental` and `campsite` did exactly that.
   EMOJI_BY_KIND = {
     "flight" => "✈️", "hotel" => "🏨", "lodging" => "🏨", "train" => "🚆",
-    "car" => "🚗", "rental_car" => "🚗", "ferry" => "⛴️", "bus" => "🚌",
+    "car" => "🚗", "rental_car" => "🚗", "car_rental" => "🚗", "ferry" => "⛴️",
+    "bus" => "🚌", "transfer" => "🚐", "parking" => "🅿️",
+    "campsite" => "🏕️", "camping" => "🏕️",
+    "check_in" => "🔑", "check_out" => "🧳",
     "activity" => "🎟️", "restaurant" => "🍽️", "meeting" => "📅", "note" => "📝"
   }.freeze
 

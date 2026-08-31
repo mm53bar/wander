@@ -35,4 +35,15 @@ class SegmentTest < ActiveSupport::TestCase
     hotel.update!(starts_at: Time.utc(2026, 9, 14, 15))
     assert_equal Date.new(2026, 9, 14), hotel.reload.local_date
   end
+
+  test "every kind the LLM prompts offer has an emoji" do
+    prompt_kinds = %w[flight hotel ferry train car_rental campsite activity check_in check_out note]
+    missing = prompt_kinds.reject { |k| Segment::EMOJI_BY_KIND.key?(k) }
+    assert_empty missing, "kinds with no emoji: #{missing.join(", ")}"
+  end
+
+  test "a drafted campsite gets a tent, not the fallback clipboard" do
+    segment = trips(:lisbon).segments.create!(kind: "campsite", summary: "Site 88")
+    assert_equal "🏕️", segment.emoji
+  end
 end
