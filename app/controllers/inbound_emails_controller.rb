@@ -18,8 +18,10 @@ class InboundEmailsController < ApplicationController
   def accept
     inbound = InboundEmail.find(params[:id])
     override = Trip.find_by(id: params[:trip_id]) if params[:trip_id].present?
-    segment = inbound.accept!(trip: override, extend_dates: params[:extend_dates] == "1")
-    redirect_to segment.trip, notice: "Added “#{segment.summary}” to #{segment.trip.name}."
+    segments = inbound.accept!(trip: override, extend_dates: params[:extend_dates] == "1")
+    trip = segments.first.trip
+    added = segments.one? ? "“#{segments.first.summary}”" : "#{segments.size} segments"
+    redirect_to trip, notice: "Added #{added} to #{trip.name}."
   rescue StandardError => e
     redirect_to inbound_emails_path, alert: "Couldn't add that: #{e.message}"
   end

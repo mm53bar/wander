@@ -19,16 +19,21 @@
     </div>
 
     <% if email.proposal? %>
-      <% seg = email.proposed_segment %>
       <div style="margin:0.6rem 0; padding:0.6rem 0.75rem; background:var(--bg); border-radius:6px;">
-        <div class="seg-summary" style="margin:0;">
-          <%= seg["kind"] %> · <%= seg["summary"] %>
-        </div>
-        <div class="seg-meta" style="margin-top:0.25rem;">
-          <% if seg["starts_at"].present? %><span><%= seg["starts_at"].to_s[0,16].tr("T"," ") %><% if seg["ends_at"].present? %> → <%= seg["ends_at"].to_s[0,16].tr("T"," ") %><% end %></span><% end %>
-          <% if seg["location"].present? %><span><%= seg["location"] %></span><% end %>
-          <% if seg["confirmation"].present? %><span class="seg-conf"><%= seg["confirmation"] %></span><% end %>
-        </div>
+        <% segments = email.segments_proposed %>
+        <% if segments.many? %>
+          <p class="subtle" style="margin:0 0 0.4rem;"><%= pluralize(segments.size, "segment") %> in this email — accepting adds them all.</p>
+        <% end %>
+        <% segments.each do |seg| %>
+          <div class="seg-summary" style="margin:0;">
+            <%= seg["kind"] %> · <%= seg["summary"] %>
+          </div>
+          <div class="seg-meta" style="margin-top:0.25rem; margin-bottom:0.5rem;">
+            <% if seg["starts_at"].present? %><span><%= seg["starts_at"].to_s[0,16].tr("T"," ") %><% if seg["ends_at"].present? %> → <%= seg["ends_at"].to_s[0,16].tr("T"," ") %><% end %></span><% end %>
+            <% if seg["location"].present? %><span><%= seg["location"] %></span><% end %>
+            <% if seg["confirmation"].present? %><span class="seg-conf"><%= seg["confirmation"] %></span><% end %>
+          </div>
+        <% end %>
         <p class="subtle" style="margin-top:0.4rem;">
           <% if email.proposed_trip %>→ <strong><%= email.proposed_trip.name %></strong><%
             elsif email.proposed_new_trip.present? %>→ <strong>New trip: <%= email.proposed_new_trip["name"] %></strong>

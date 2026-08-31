@@ -22,9 +22,22 @@ class InboundEmailsControllerTest < ActionDispatch::IntegrationTest
     assert_equal trips(:lisbon), inbound.trip
   end
 
+  test "accept materializes every segment in the proposal" do
+    inbound = inbound_emails(:pending_flight)
+    inbound.apply_proposal!(
+      segments: [ { "kind" => "ferry", "summary" => "Outbound" }, { "kind" => "ferry", "summary" => "Return" } ],
+      trip_id: trips(:lisbon).id, new_trip: nil, extends_trip: false, suggested_end_date: nil,
+      confidence: "high", reason: nil
+    )
+    assert_difference -> { trips(:lisbon).segments.count }, 2 do
+      post accept_inbound_email_path(inbound)
+    end
+    assert_equal 2, inbound.reload.created_segment_ids.size
+  end
+
   test "accept materializes a proposal into a segment on the trip" do
     inbound = inbound_emails(:pending_hotel)
-    inbound.apply_proposal!(segment: { "kind" => "hotel", "summary" => "Stay" }, trip_id: trips(:lisbon).id,
+    inbound.apply_proposal!(segments: [ { "kind" => "hotel", "summary" => "Stay" } ], trip_id: trips(:lisbon).id,
       new_trip: nil, extends_trip: false, suggested_end_date: nil, confidence: "high", reason: nil)
     assert_difference -> { trips(:lisbon).segments.count }, 1 do
       post accept_inbound_email_path(inbound)
@@ -35,7 +48,7 @@ class InboundEmailsControllerTest < ActionDispatch::IntegrationTest
 
   test "undo returns an auto-filed email to the inbox" do
     inbound = inbound_emails(:pending_hotel)
-    inbound.apply_proposal!(segment: { "kind" => "hotel", "summary" => "Stay" }, trip_id: trips(:lisbon).id,
+    inbound.apply_proposal!(segments: [ { "kind" => "hotel", "summary" => "Stay" } ], trip_id: trips(:lisbon).id,
       new_trip: nil, extends_trip: false, suggested_end_date: nil, confidence: "high", reason: nil)
     inbound.auto_accept!
     post undo_inbound_email_path(inbound)

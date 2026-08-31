@@ -7,8 +7,13 @@ class BookingParserTest < ActiveSupport::TestCase
     def complete_json(**) = @data
   end
 
+  def parse_all(payload)
+    BookingParser.new(raw_emails(:lisbon_confirmation), trips(:lisbon), client: FakeLlm.new(payload)).segments_attrs
+  end
+
+  # Most cases describe a single segment; wrap it in the list shape.
   def parse(data)
-    BookingParser.new(raw_emails(:lisbon_confirmation), trips(:lisbon), client: FakeLlm.new(data)).segment_attrs
+    parse_all(data.is_a?(Hash) ? { "segments" => [ data ] } : data)&.first
   end
 
   test "maps the LLM JSON to segment attributes" do
@@ -40,6 +45,18 @@ class BookingParserTest < ActiveSupport::TestCase
 
   test "returns nil when the response is not a JSON object" do
     assert_nil parse(nil)
+  end
+
+  test "extracts every leg the email describes" do
+    attrs = parse_all("segments" => [
+      { "kind" => "ferry", "confirmation" => "B266864753" },
+      { "kind" => "ferry", "confirmation" => "B266864782" }
+    ])
+    assert_equal %w[B266864753 B266864782], attrs.map { |a| a[:confirmation] }
+  end
+
+  test "returns nil when the response carries no segments" do
+    assert_nil parse_all("segments" => [])
   end
 
   test "available? reflects the client" do

@@ -1,4 +1,56 @@
 namespace :intake do
+  desc "Re-run triage and filing for stored emails from scratch: intake:reprocess[6,7]"
+  task :reprocess, [ :ids ] => :environment do |_task, args|
+    ids = args[:ids].to_s.split(/[,\s]+/).filter_map { |id| Integer(id, exception: false) }
+    abort 'Usage: bin/rails "intake:reprocess[6]"' if ids.empty?
+
+    InboundEmail.where(id: ids).order(:id).each do |email|
+      # Only ever unpick wander's own work. An email filed by hand may have
+      # segments a human wrote, which aren't ours to delete — and re-triaging it
+      # would file a second copy alongside them.
+      unless email.status == "received" || email.auto_filed?
+        warn "##{email.id} was filed by hand — skipping, wander can't tell which segments are its own."
+        next
+      end
+
+      if email.auto_filed?
+        puts "##{email.id} undoing previous auto-file (segments #{email.created_segment_ids.join(', ')})"
+        email.undo_auto_file!
+      end
+
+      # Same deterministic guard the intake runs: with our own segments now gone,
+      # a confirmation still on a segment means it's recorded somewhere else.
+      if (dup = email.duplicate_trip)
+        email.resolve_as_duplicate!(dup)
+        puts "##{email.id} already recorded on #{dup.name} — marked duplicate"
+        next
+      end
+
+      triager = TripTriager.new(email)
+      abort "The LLM isn't configured." unless triager.available?
+
+      proposal = triager.triage
+      if proposal.nil?
+        puts "##{email.id} triage returned nothing — left in the inbox"
+        next
+      end
+
+      email.apply_proposal!(proposal)
+      unless email.proposed_start_resolved?
+        puts "##{email.id} a segment has no resolvable time zone — left for review"
+        next
+      end
+
+      puts "##{email.id} #{email.subject.to_s[0, 44]}"
+      email.segments_proposed.each { |s| puts "    #{s['kind']} #{s['starts_at']} #{s['confirmation']}" }
+      next puts("    → left in the inbox for review") unless email.auto_acceptable?
+
+      created = email.auto_accept! && email.created_segment_ids
+      puts "    → auto-filed to #{email.trip.name} as segment(s) #{created.join(', ')}"
+    end
+  end
+
+
   desc "Re-run triage on everything waiting in the inbox (after the triager changes)"
   task retriage: :environment do
     emails = InboundEmail.received.to_a

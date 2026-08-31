@@ -9,13 +9,19 @@ class TripTriager
     each with its segments (type, date, location), and one booking EMAIL.
 
     Return ONLY JSON:
-    {"segment":{"kind","summary","starts_at_local","starts_time_zone",
+    {"segments":[{"kind","summary","starts_at_local","starts_time_zone",
       "ends_at_local","ends_time_zone","starts_at_label","ends_at_label",
-      "location","confirmation","links":[{"label","url"}]},
+      "location","confirmation","links":[{"label","url"}]}],
      "assignment":{"trip_id":<existing id or null>,"extends_trip":true|false,
       "suggested_start_date":<ISO date or null>,"suggested_end_date":<ISO date or null>,
       "new_trip":{"name","start_date","end_date"}|null,
       "confidence":"high|medium|low","reason":"one sentence"}}
+
+    Give ONE entry in "segments" per distinct leg or booking the email describes.
+    A return ferry is two, a multi-leg flight is one per flight, and a forward
+    carrying two confirmations is one per confirmation. Never merge them, and
+    never emit a leg the email doesn't actually contain. All of them belong to the
+    same trip assignment.
 
     Choosing a trip:
     - A DATE MATCH line, when present, is a deterministic computation over the
@@ -49,10 +55,9 @@ class TripTriager
     data = @client.complete_json(system: SYSTEM, user: user_prompt)
     return nil unless data.is_a?(Hash)
 
-    seg = data["segment"] || {}
     a = data["assignment"] || {}
     {
-      segment: normalize_segment(seg),
+      segments: normalize_segments(data["segments"]),
       trip_id: valid_trip_id(a["trip_id"]),
       new_trip: normalize_new_trip(a["new_trip"]),
       extends_trip: a["extends_trip"] == true,
@@ -78,6 +83,10 @@ class TripTriager
   # enters the system, so everything downstream sees a real instant or nil. The
   # *_at_local values are kept so an unresolved zone stays distinguishable from a
   # booking that simply states no time (see InboundEmail#proposed_start_resolved?).
+  def normalize_segments(segments)
+    Array(segments).select { |s| s.is_a?(Hash) }.map { |s| normalize_segment(s) }
+  end
+
   def normalize_segment(seg)
     times = SegmentTime.from_llm(seg)
     {

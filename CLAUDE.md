@@ -38,6 +38,9 @@ no secrets, no network-specific names in commits.**
   `links` json), `QrCode` (base64 PNG in a text column), `RawEmail`.
   `IcsCalendar` builds the feed; `ArchivePastEmailsJob` (daily, `config/recurring.yml`)
   discards emails once a trip has ended.
+- **One email can propose many segments** (`proposed_segments`), all filed to one
+  trip. Undo must remove every one — see
+  `docs/adr/20260831-many-segments-per-email.md`.
 - Intake: `ImapMailbox` (IMAP read + move) → `EmailIntakeJob` →
   `TravelEmailClassifier` → `InboundEmail` → `TripTriager` (LLM) →
   auto-file or the Inbox. Dead ends go to `IntakeNotifier` → `IntakeMailer`,

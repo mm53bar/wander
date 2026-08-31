@@ -15,7 +15,7 @@ class InboundEmail < ApplicationRecord
 
   # Captured, but triage has never produced a proposal — the retry set.
   scope :awaiting_triage, lambda {
-    where(status: "received", proposed_segment: nil)
+    where(status: "received", proposed_segments: nil)
       .where(triage_attempts: ...MAX_TRIAGE_ATTEMPTS)
   }
 
@@ -54,7 +54,12 @@ class InboundEmail < ApplicationRecord
     update!(trip: trip, status: "duplicate")
   end
   def proposal?
-    proposed_segment.present?
+    segments_proposed.any?
+  end
+
+  # Always an array, whatever the column holds.
+  def segments_proposed
+    Array(proposed_segments).select { |s| s.is_a?(Hash) }
   end
 
   def record_triage_attempt!
@@ -65,13 +70,12 @@ class InboundEmail < ApplicationRecord
     triage_attempts >= MAX_TRIAGE_ATTEMPTS
   end
 
-  # False only when the model read a time off the booking but no zone could be
+  # False when the model read a time off the booking but no zone could be
   # established for it. A booking that states no time at all isn't a failure —
-  # some genuinely have none — so it must not trigger a notice.
+  # some genuinely have none. One unresolved segment holds the whole email back:
+  # filing half a booking is more confusing than filing none of it.
   def proposed_start_resolved?
-    segment = proposed_segment
-    return true unless segment.is_a?(Hash)
-    segment["starts_at_local"].blank? || segment["starts_at"].present?
+    segments_proposed.all? { |s| s["starts_at_local"].blank? || s["starts_at"].present? }
   end
 
   # Intake synthesises "imap-<uid>" when a message carries no Message-ID header.
@@ -104,7 +108,7 @@ class InboundEmail < ApplicationRecord
   # Store an LLM triage proposal on this email.
   def apply_proposal!(p)
     update!(
-      proposed_segment: p[:segment], proposed_trip_id: p[:trip_id], proposed_new_trip: p[:new_trip],
+      proposed_segments: p[:segments], proposed_trip_id: p[:trip_id], proposed_new_trip: p[:new_trip],
       extends_trip: p[:extends_trip] || false, suggested_start_date: p[:suggested_start_date],
       suggested_end_date: p[:suggested_end_date],
       confidence: p[:confidence], reason: p[:reason]
@@ -117,11 +121,13 @@ class InboundEmail < ApplicationRecord
     target = trip || proposed_trip || build_new_trip!
     raise ActiveRecord::RecordInvalid, self unless target
 
-    segment = target.segments.create!(segment_attributes)
+    created = segments_proposed.map { |s| target.segments.create!(segment_attributes(s)) }
+    raise ActiveRecord::RecordInvalid, self if created.empty?
+
     moved = extend_dates && extends_trip ? widen!(target) : {}
-    update!(status: "filed", trip: target, created_segment_id: segment.id,
+    update!(status: "filed", trip: target, created_segment_ids: created.map(&:id),
             prior_trip_end_date: moved[:end_date], prior_trip_start_date: moved[:start_date])
-    segment
+    created
   end
 
   def auto_accept!
@@ -132,10 +138,10 @@ class InboundEmail < ApplicationRecord
   # Reverse an auto-file: delete the created segment, put back either trip date
   # the extend moved, and return to the inbox.
   def undo_auto_file!
-    Segment.where(id: created_segment_id).destroy_all if created_segment_id
+    Segment.where(id: created_segment_ids).destroy_all if created_segment_ids.present?
     restored = { end_date: prior_trip_end_date, start_date: prior_trip_start_date }.compact
     trip&.update!(restored) if restored.any?
-    update!(status: "received", trip: nil, auto_filed: false, created_segment_id: nil,
+    update!(status: "received", trip: nil, auto_filed: false, created_segment_ids: [],
             prior_trip_end_date: nil, prior_trip_start_date: nil)
   end
 
@@ -160,15 +166,14 @@ class InboundEmail < ApplicationRecord
   def build_new_trip!
     nt = proposed_new_trip
     return nil unless nt.is_a?(Hash) && nt["name"].present?
-    seg_date = proposed_segment&.dig("starts_at")
+    seg_date = segments_proposed.first&.dig("starts_at")
     Trip.create!(
       name: nt["name"],
       start_date: nt["start_date"].presence || seg_date, end_date: nt["end_date"].presence || seg_date
     )
   end
 
-  def segment_attributes
-    s = proposed_segment || {}
+  def segment_attributes(s)
     {
       kind: s["kind"].presence || "note", summary: s["summary"].presence || subject,
       starts_at: s["starts_at"].presence, ends_at: s["ends_at"].presence,

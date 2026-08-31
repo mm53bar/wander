@@ -14,18 +14,27 @@ class TripTriagerTest < ActiveSupport::TestCase
 
   test "maps triage output to a proposal" do
     fake = Fake.new(
-      "segment" => { "kind" => "ferry", "summary" => "Ferry", "confirmation" => "X", "links" => [ { "label" => "a", "url" => "https://x" } ] },
+      "segments" => [ { "kind" => "ferry", "summary" => "Ferry", "confirmation" => "X", "links" => [ { "label" => "a", "url" => "https://x" } ] } ],
       "assignment" => { "trip_id" => trips(:lisbon).id, "extends_trip" => false, "confidence" => "high", "reason" => "r" }
     )
     p = TripTriager.new(inbound_emails(:pending_flight), client: fake).triage
-    assert_equal "ferry", p[:segment]["kind"]
+    assert_equal "ferry", p[:segments].first["kind"]
     assert_equal trips(:lisbon).id, p[:trip_id]
     assert_equal "high", p[:confidence]
-    assert_equal 1, p[:segment]["links"].size
+    assert_equal 1, p[:segments].first["links"].size
+  end
+
+  test "keeps every leg the email describes" do
+    fake = Fake.new(
+      "segments" => [ { "kind" => "ferry", "confirmation" => "A" }, { "kind" => "ferry", "confirmation" => "B" } ],
+      "assignment" => { "trip_id" => trips(:lisbon).id, "confidence" => "high" }
+    )
+    proposal = TripTriager.new(inbound_emails(:pending_flight), client: fake).triage
+    assert_equal %w[A B], proposal[:segments].map { |s| s["confirmation"] }
   end
 
   test "rejects a trip id that isn't a real trip" do
-    fake = Fake.new("segment" => { "kind" => "x" }, "assignment" => { "trip_id" => 999_999, "confidence" => "low" })
+    fake = Fake.new("segments" => [ { "kind" => "x" } ], "assignment" => { "trip_id" => 999_999, "confidence" => "low" })
     assert_nil TripTriager.new(inbound_emails(:pending_flight), client: fake).triage[:trip_id]
   end
 
@@ -43,7 +52,7 @@ class TripTriagerTest < ActiveSupport::TestCase
   end
 
   def prompt_for(email)
-    fake = Fake.new("segment" => { "kind" => "x" }, "assignment" => { "confidence" => "low" })
+    fake = Fake.new("segments" => [ { "kind" => "x" } ], "assignment" => { "confidence" => "low" })
     TripTriager.new(email, client: fake).triage
     fake.user_prompt
   end

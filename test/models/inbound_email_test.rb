@@ -24,7 +24,7 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_equal InboundEmail.where(status: "received").order(received_at: :desc).to_a, InboundEmail.received.to_a
   end
   def propose(inbound, **over)
-    base = { segment: { "kind" => "flight", "summary" => "Test flight", "starts_at" => "2026-09-06T10:00:00", "confirmation" => "ZZ9" },
+    base = { segments: [ { "kind" => "flight", "summary" => "Test flight", "starts_at" => "2026-09-06T10:00:00", "confirmation" => "ZZ9" } ],
              trip_id: trips(:lisbon).id, new_trip: nil, extends_trip: false,
              suggested_start_date: nil, suggested_end_date: nil, confidence: "high", reason: "x" }
     inbound.apply_proposal!(base.merge(over))
@@ -37,15 +37,15 @@ class InboundEmailTest < ActiveSupport::TestCase
       inbound.accept!
     end
     assert_equal "filed", inbound.reload.status
-    assert_equal "flight", Segment.find(inbound.created_segment_id).kind
+    assert_equal "flight", Segment.find(inbound.created_segment_ids.first).kind
   end
 
   test "accept! creates a new trip from the proposal" do
     inbound = inbound_emails(:pending_hotel)
     propose(inbound, trip_id: nil, new_trip: { "name" => "Spring Trip", "start_date" => "2027-03-01", "end_date" => "2027-03-05" }, confidence: "medium")
     assert_difference -> { Trip.count }, 1 do
-      seg = inbound.accept!
-      assert_equal "Spring Trip", seg.trip.name
+      created = inbound.accept!
+      assert_equal "Spring Trip", created.first.trip.name
     end
   end
 
@@ -88,9 +88,9 @@ class InboundEmailTest < ActiveSupport::TestCase
     inbound = inbound_emails(:pending_flight)
     propose(inbound)
     inbound.auto_accept!
-    seg_id = inbound.created_segment_id
+    seg_ids = inbound.created_segment_ids
     inbound.undo_auto_file!
-    assert_not Segment.exists?(seg_id)
+    assert_empty Segment.where(id: seg_ids)
     assert_equal "received", inbound.reload.status
   end
 

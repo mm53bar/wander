@@ -1,12 +1,22 @@
 <% content_for :title, "Add segment" %>
 <p class="crumb"><%= link_to "← #{@trip.name}", trip_path(@trip) %></p>
-<h1 class="page-title"><%= @drafted ? "Review drafted segment" : "Add segment" %></h1>
+<% segments = @drafted ? @segments : [ @segment ] %>
+<h1 class="page-title">
+  <%= @drafted ? "Review #{pluralize(segments.size, 'drafted segment')}" : "Add segment" %>
+</h1>
 <% if @drafted %>
   <p class="flash flash-notice" style="margin:0 0 1rem;">
-    Drafted from the email by AI — check the details (especially dates/times) before saving.
+    Drafted from the email by AI — check the details (especially dates/times) before
+    saving. <% if segments.many? %>Each is saved separately, so you can keep some and
+    drop the rest.<% end %>
   </p>
 <% end %>
-<div class="card">
-  <%= render "segments/form", segment: @segment,
-        form_url: trip_segments_path(@trip), submit_label: "Add segment" %>
-</div>
+<% segments.each_with_index do |segment, i| %>
+  <div class="card">
+    <% if segments.many? %>
+      <p class="section-label" style="margin-top:0;">Segment <%= i + 1 %> of <%= segments.size %></p>
+    <% end %>
+    <%= render "segments/form", segment: segment,
+          form_url: trip_segments_path(@trip), submit_label: "Add segment" %>
+  </div>
+<% end %>

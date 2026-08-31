@@ -102,7 +102,7 @@ class EmailIntakeJobTest < ActiveJob::TestCase
 
   test "a brief LLM outage doesn't notify, and leaves the booking to be retried" do
     inbound = inbound_emails(:pending_flight)
-    inbound.update!(proposed_segment: nil, triage_attempts: 0)
+    inbound.update!(proposed_segments: nil, triage_attempts: 0)
     AllowedSender.create!(address: AllowedSender.address_in(inbound.from_address))
 
     EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UnavailableLlm.new)
@@ -114,7 +114,7 @@ class EmailIntakeJobTest < ActiveJob::TestCase
 
   test "gives up and reports only once the retries are spent" do
     inbound = inbound_emails(:pending_flight)
-    inbound.update!(proposed_segment: nil, triage_attempts: InboundEmail::MAX_TRIAGE_ATTEMPTS - 1)
+    inbound.update!(proposed_segments: nil, triage_attempts: InboundEmail::MAX_TRIAGE_ATTEMPTS - 1)
 
     EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UselessLlm.new)
 

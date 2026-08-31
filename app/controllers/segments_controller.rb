@@ -84,9 +84,9 @@ class SegmentsController < ApplicationController
       redirect_to(@trip, alert: "AI drafting isn't configured.") and return
     end
 
-    attrs = parser.segment_attrs
-    if attrs
-      @segment = @trip.segments.new(attrs)
+    drafts = parser.segments_attrs
+    if drafts.present?
+      @segments = drafts.map { |attrs| @trip.segments.new(attrs) }
       @drafted = true
       render "segments/new"
     else

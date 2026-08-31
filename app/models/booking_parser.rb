@@ -4,8 +4,10 @@
 # configured or the response is unusable.
 class BookingParser
   SYSTEM = <<~PROMPT.freeze
-    You extract ONE travel itinerary segment from a booking email (often a
-    forwarded confirmation). Return ONLY a JSON object with these keys:
+    You extract the travel itinerary segments from a booking email (often a
+    forwarded confirmation). Return ONLY a JSON object {"segments":[...]}, with
+    ONE entry per distinct leg or booking the email describes — a return ferry is
+    two, a multi-leg flight is one per flight. Each entry has these keys:
       kind            short lowercase type: flight, hotel, ferry, train,
                       car_rental, campsite, activity, check_in, check_out, note
       summary          one concise line naming the booking
@@ -33,11 +35,19 @@ class BookingParser
     @client.configured?
   end
 
-  # A hash of Segment attributes, or nil if drafting isn't possible.
-  def segment_attrs
+  # An array of Segment attribute hashes, or nil if drafting isn't possible.
+  def segments_attrs
     data = @client.complete_json(system: SYSTEM, user: user_prompt)
     return nil unless data.is_a?(Hash)
 
+    segments = Array(data["segments"]).select { |s| s.is_a?(Hash) }
+    return nil if segments.empty?
+    segments.map { |s| attrs_for(s) }
+  end
+
+  private
+
+  def attrs_for(data)
     times = SegmentTime.from_llm(data)
     {
       kind: data["kind"].presence || "note",
@@ -51,8 +61,6 @@ class BookingParser
       links: normalize_links(data["links"])
     }
   end
-
-  private
 
   def user_prompt
     <<~TEXT

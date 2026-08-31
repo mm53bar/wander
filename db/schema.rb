@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_000002) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_000003) do
   create_table "allowed_senders", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.string "address", null: false
@@ -25,7 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000002) do
     t.text "body"
     t.string "confidence"
     t.datetime "created_at", null: false
-    t.integer "created_segment_id"
+    t.json "created_segment_ids", default: [], null: false
     t.boolean "extends_trip", default: false, null: false
     t.string "from_address"
     t.string "message_id", null: false
@@ -33,7 +33,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000002) do
     t.date "prior_trip_end_date"
     t.date "prior_trip_start_date"
     t.json "proposed_new_trip"
-    t.json "proposed_segment"
+    t.json "proposed_segments"
     t.integer "proposed_trip_id"
     t.text "reason"
     t.datetime "received_at", null: false
