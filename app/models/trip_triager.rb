@@ -13,7 +13,7 @@ class TripTriager
       "ends_at_local","ends_time_zone","starts_at_label","ends_at_label",
       "location","confirmation","links":[{"label","url"}]},
      "assignment":{"trip_id":<existing id or null>,"extends_trip":true|false,
-      "suggested_end_date":<ISO date or null>,
+      "suggested_start_date":<ISO date or null>,"suggested_end_date":<ISO date or null>,
       "new_trip":{"name","start_date","end_date"}|null,
       "confidence":"high|medium|low","reason":"one sentence"}}
 
@@ -25,9 +25,10 @@ class TripTriager
       dates fall within, or are immediately adjacent to (starting on or near the
       trip's last day), that trip's span AND its location is consistent with the
       trip's route — near an existing stop or the destination.
-    - A booking may EXTEND a trip: if it starts on/near the last day and is in the
-      same area as the final stop, attach it, set extends_trip=true and
-      suggested_end_date=the booking's end date.
+    - A booking may EXTEND a trip at either end: if it sits on or just outside the
+      trip's first or last day and is in the same area as the nearest stop, attach
+      it, set extends_trip=true, and give suggested_end_date (booking's end date)
+      or suggested_start_date (booking's start date) for whichever edge it passes.
     - Propose a NEW trip only when the booking is a clearly separate journey: a
       different region, or a distinctly different time with no continuity.
     #{SegmentTime::PROMPT}
@@ -55,6 +56,7 @@ class TripTriager
       trip_id: valid_trip_id(a["trip_id"]),
       new_trip: normalize_new_trip(a["new_trip"]),
       extends_trip: a["extends_trip"] == true,
+      suggested_start_date: a["suggested_start_date"].presence,
       suggested_end_date: a["suggested_end_date"].presence,
       confidence: %w[high medium low].include?(a["confidence"]) ? a["confidence"] : "low",
       reason: a["reason"].presence
@@ -100,24 +102,39 @@ class TripTriager
   # out: a booking starting on a trip's last day reads as "no overlap" to the LLM
   # often enough that it proposes a spurious new trip.
   def date_hint
-    dates = TripMatcher.new("#{@email.subject}\n#{@email.body}").extracted_dates
-    return nil if dates.empty?
-
     # Only trips that haven't ended: an email's booking-date line ("Booking Date
     # Sunday, August 23") lands inside whatever trip was running that week, and a
     # finished trip must not out-score the one the booking is actually for.
     candidates = @trips.reject { |t| t.end_date < Date.current }
-    trip, hits = candidates.map { |t| [ t, dates.count { |d| (t.start_date..t.end_date).cover?(d) } ] }
-                           .max_by { |(_, n)| n }
-    return nil unless hits.to_i.positive?
+    match = TripMatcher.new("#{@email.subject}\n#{@email.body}").best_match(candidates)
+    return nil unless match
 
-    last = dates.max
-    if last > trip.end_date
-      tail = " The booking runs to #{last}, past that trip's end date (#{trip.end_date}) — " \
-             "treat it as an EXTENDS case with suggested_end_date=#{last}."
+    ([ match_summary(match) ] + extend_notes(match)).join(" ")
+  end
+
+  def match_summary(match)
+    trip = match.trip
+    span = "trip id=#{trip.id} \"#{trip.name}\" [#{trip.start_date}..#{trip.end_date}]"
+    if match.inside?
+      "DATE MATCH: #{match.inside} of the email's dates fall inside #{span}."
+    else
+      "DATE MATCH: the email's dates sit within #{TripMatcher::LEEWAY_DAYS} days of #{span}, " \
+        "just outside it."
     end
-    "DATE MATCH: #{hits} of the email's dates (#{dates.sort.join(', ')}) fall inside " \
-      "trip id=#{trip.id} \"#{trip.name}\" [#{trip.start_date}..#{trip.end_date}].#{tail}"
+  end
+
+  def extend_notes(match)
+    trip = match.trip
+    notes = []
+    if match.extends_end?
+      notes << "It runs to #{match.last_date}, past that trip's end date (#{trip.end_date}) — " \
+               "treat it as an EXTENDS case with suggested_end_date=#{match.last_date}."
+    end
+    if match.extends_start?
+      notes << "It starts #{match.first_date}, before that trip's start date (#{trip.start_date}) — " \
+               "treat it as an EXTENDS case with suggested_start_date=#{match.first_date}."
+    end
+    notes
   end
 
   def trip_block(t)

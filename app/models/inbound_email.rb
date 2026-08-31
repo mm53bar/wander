@@ -93,19 +93,20 @@ class InboundEmail < ApplicationRecord
   end
 
   # High-confidence assignment to an existing trip — safe to file without a human
-  # click. Extending that trip is allowed, but only when there's an end date to
-  # extend to: without one the trip would keep an end date that falls before the
-  # segment we just added. New-trip proposals still stay for review.
+  # click. Extending that trip is allowed, but only when there's a date to extend
+  # to at whichever edge it passes: without one the trip would end up not
+  # containing the segment we just added. New-trip proposals stay for review.
   def auto_acceptable?
     return false unless confidence == "high" && proposed_trip_id.present? && proposed_new_trip.blank?
-    !extends_trip || suggested_end_date.present?
+    !extends_trip || suggested_end_date.present? || suggested_start_date.present?
   end
 
   # Store an LLM triage proposal on this email.
   def apply_proposal!(p)
     update!(
       proposed_segment: p[:segment], proposed_trip_id: p[:trip_id], proposed_new_trip: p[:new_trip],
-      extends_trip: p[:extends_trip] || false, suggested_end_date: p[:suggested_end_date],
+      extends_trip: p[:extends_trip] || false, suggested_start_date: p[:suggested_start_date],
+      suggested_end_date: p[:suggested_end_date],
       confidence: p[:confidence], reason: p[:reason]
     )
   end
@@ -117,12 +118,9 @@ class InboundEmail < ApplicationRecord
     raise ActiveRecord::RecordInvalid, self unless target
 
     segment = target.segments.create!(segment_attributes)
-    previous_end = nil
-    if extend_dates && extends_trip && suggested_end_date && suggested_end_date > target.end_date
-      previous_end = target.end_date
-      target.update!(end_date: suggested_end_date)
-    end
-    update!(status: "filed", trip: target, created_segment_id: segment.id, prior_trip_end_date: previous_end)
+    moved = extend_dates && extends_trip ? widen!(target) : {}
+    update!(status: "filed", trip: target, created_segment_id: segment.id,
+            prior_trip_end_date: moved[:end_date], prior_trip_start_date: moved[:start_date])
     segment
   end
 
@@ -131,15 +129,33 @@ class InboundEmail < ApplicationRecord
     update!(auto_filed: true)
   end
 
-  # Reverse an auto-file: delete the created segment, put back any trip end date
+  # Reverse an auto-file: delete the created segment, put back either trip date
   # the extend moved, and return to the inbox.
   def undo_auto_file!
     Segment.where(id: created_segment_id).destroy_all if created_segment_id
-    trip&.update!(end_date: prior_trip_end_date) if prior_trip_end_date
-    update!(status: "received", trip: nil, auto_filed: false, created_segment_id: nil, prior_trip_end_date: nil)
+    restored = { end_date: prior_trip_end_date, start_date: prior_trip_start_date }.compact
+    trip&.update!(restored) if restored.any?
+    update!(status: "received", trip: nil, auto_filed: false, created_segment_id: nil,
+            prior_trip_end_date: nil, prior_trip_start_date: nil)
   end
 
   private
+
+  # Stretch the trip over a booking that runs past either edge, returning what
+  # the dates were so undo can put them back.
+  def widen!(trip)
+    was = {}
+    if suggested_end_date && suggested_end_date > trip.end_date
+      was[:end_date] = trip.end_date
+      trip.end_date = suggested_end_date
+    end
+    if suggested_start_date && suggested_start_date < trip.start_date
+      was[:start_date] = trip.start_date
+      trip.start_date = suggested_start_date
+    end
+    trip.save! if trip.changed?
+    was
+  end
 
   def build_new_trip!
     nt = proposed_new_trip

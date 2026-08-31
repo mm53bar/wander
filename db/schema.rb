@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_000001) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_000002) do
   create_table "allowed_senders", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.string "address", null: false
@@ -31,6 +31,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000001) do
     t.string "message_id", null: false
     t.datetime "notified_at"
     t.date "prior_trip_end_date"
+    t.date "prior_trip_start_date"
     t.json "proposed_new_trip"
     t.json "proposed_segment"
     t.integer "proposed_trip_id"
@@ -42,6 +43,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000001) do
     t.string "status", default: "received", null: false
     t.string "subject"
     t.date "suggested_end_date"
+    t.date "suggested_start_date"
     t.integer "triage_attempts", default: 0, null: false
     t.integer "trip_id"
     t.datetime "updated_at", null: false

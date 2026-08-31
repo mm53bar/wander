@@ -9,6 +9,21 @@
 class TripMatcher
   MONTHS = %w[jan feb mar apr may jun jul aug sep oct nov dec].freeze
 
+  # Bookings that stitch onto a trip often land just outside its dates — a ferry
+  # the morning after a checkout, a hotel the night before a flight. Dates this
+  # close to an edge still count, at half the weight of one inside, so a trip
+  # that genuinely contains the booking always outranks a merely adjacent one.
+  LEEWAY_DAYS = 3
+
+  # first_date/last_date cover only the dates near THIS trip, not every date in
+  # the email — a "Booking Date" line months earlier must not read as a booking
+  # that starts before the trip does.
+  Match = Data.define(:trip, :score, :inside, :near, :first_date, :last_date) do
+    def inside? = inside.positive?
+    def extends_end? = last_date > trip.end_date
+    def extends_start? = first_date < trip.start_date
+  end
+
   def initialize(text)
     @text = text.to_s
   end
@@ -23,11 +38,22 @@ class TripMatcher
   end
 
   def suggested_trip
+    best_match(Trip.fileable)&.trip
+  end
+
+  # The best-scoring trip for this email's dates, or nil when nothing scores or
+  # two trips tie. A tie is real ambiguity — a booking equally adjacent to the
+  # trip ending Friday and the one starting Monday — and naming either would
+  # dress a coin flip up as a computation.
+  def best_match(trips)
     dates = extracted_dates
     return nil if dates.empty?
-    scored = Trip.fileable.map { |t| [ t, dates.count { |d| (t.start_date..t.end_date).cover?(d) } ] }
-    trip, hits = scored.max_by { |(_, n)| n }
-    hits.to_i.positive? ? trip : nil
+
+    scored = trips.filter_map { |trip| score_for(trip, dates) }
+    return nil if scored.empty?
+
+    best = scored.max_by(&:score)
+    scored.one? { |m| m.score == best.score } ? best : nil
   end
 
   # Dates mentioned in the email, in a few common formats, sanity-bounded.
@@ -43,6 +69,17 @@ class TripMatcher
   end
 
   private
+
+  # nil when no date in the email comes near this trip at all.
+  def score_for(trip, dates)
+    span = trip.start_date..trip.end_date
+    relevant = dates.select { |d| (span.begin - LEEWAY_DAYS..span.end + LEEWAY_DAYS).cover?(d) }
+    return nil if relevant.empty?
+
+    inside = relevant.count { |d| span.cover?(d) }
+    Match.new(trip: trip, score: (inside * 2) + (relevant.size - inside), inside: inside,
+              near: relevant.size - inside, first_date: relevant.min, last_date: relevant.max)
+  end
 
   def month_date(year, month_name, day)
     idx = MONTHS.index(month_name.to_s[0, 3].downcase)

@@ -55,6 +55,19 @@ class TripTriagerTest < ActiveSupport::TestCase
     assert_no_match(/EXTENDS case/, prompt)
   end
 
+  test "prompt says when the match is adjacent rather than inside" do
+    prompt = prompt_for(email_dated(27))   # 2 days past lisbon's end
+    assert_match(/within #{TripMatcher::LEEWAY_DAYS} days of trip id=#{trips(:lisbon).id}/, prompt)
+    assert_match(/just outside it/, prompt)
+    assert_match(/EXTENDS case with suggested_end_date/, prompt)
+  end
+
+  test "prompt flags a backwards extend when the booking starts before the trip" do
+    first = 18.days.from_now.to_date       # 2 days before lisbon starts
+    prompt = prompt_for(email_dated(18, 22))
+    assert_match(/EXTENDS case with suggested_start_date=#{first}/, prompt)
+  end
+
   test "prompt flags an EXTENDS case when the booking runs past the trip's end" do
     last = 27.days.from_now.to_date
     prompt = prompt_for(email_dated(24, 27))

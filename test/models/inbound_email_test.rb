@@ -25,7 +25,8 @@ class InboundEmailTest < ActiveSupport::TestCase
   end
   def propose(inbound, **over)
     base = { segment: { "kind" => "flight", "summary" => "Test flight", "starts_at" => "2026-09-06T10:00:00", "confirmation" => "ZZ9" },
-             trip_id: trips(:lisbon).id, new_trip: nil, extends_trip: false, suggested_end_date: nil, confidence: "high", reason: "x" }
+             trip_id: trips(:lisbon).id, new_trip: nil, extends_trip: false,
+             suggested_start_date: nil, suggested_end_date: nil, confidence: "high", reason: "x" }
     inbound.apply_proposal!(base.merge(over))
   end
 
@@ -103,5 +104,41 @@ class InboundEmailTest < ActiveSupport::TestCase
     inbound.undo_auto_file!
     assert_equal original_end, trips(:lisbon).reload.end_date
     assert_nil inbound.reload.prior_trip_end_date
+  end
+
+  test "accept! widens a trip backwards when the booking starts before it" do
+    original_start = trips(:lisbon).start_date
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_start_date: (original_start - 2).to_s)
+    inbound.accept!(extend_dates: true)
+    assert_equal original_start - 2, trips(:lisbon).reload.start_date
+  end
+
+  test "auto_acceptable? accepts an extend backed by a start date alone" do
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_start_date: (trips(:lisbon).start_date - 1).to_s)
+    assert inbound.auto_acceptable?
+  end
+
+  test "undo_auto_file! puts back a start date the extend moved" do
+    original_start = trips(:lisbon).start_date
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_start_date: (original_start - 2).to_s)
+    inbound.auto_accept!
+    assert_equal original_start - 2, trips(:lisbon).reload.start_date
+
+    inbound.undo_auto_file!
+    assert_equal original_start, trips(:lisbon).reload.start_date
+    assert_nil inbound.reload.prior_trip_start_date
+  end
+
+  test "widening never narrows a trip that already covers the booking" do
+    trip = trips(:lisbon)
+    original = [ trip.start_date, trip.end_date ]
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true,
+            suggested_start_date: (trip.start_date + 1).to_s, suggested_end_date: (trip.end_date - 1).to_s)
+    inbound.accept!(extend_dates: true)
+    assert_equal original, [ trips(:lisbon).reload.start_date, trips(:lisbon).end_date ]
   end
 end
