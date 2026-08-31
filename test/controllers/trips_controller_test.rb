@@ -53,4 +53,11 @@ class TripsControllerTest < ActionDispatch::IntegrationTest
     post unarchive_trip_path(trips(:lisbon))
     assert_not trips(:lisbon).reload.archived?
   end
+
+  test "notes are saved and rendered as markdown on the trip page" do
+    patch trip_path(trips(:lisbon)), params: { trip: { notes: "## Plan\n\n- Sat 5 - leave for Kamloops" } }
+    get trip_path(trips(:lisbon))
+    assert_select "h2", text: "Plan"
+    assert_select ".prose li", text: /leave for Kamloops/
+  end
 end

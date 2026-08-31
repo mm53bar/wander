@@ -25,6 +25,10 @@
       </div>
     <% end %>
 
+    <% if segment.notes.present? %>
+      <div class="seg-notes prose"><%= markdown(segment.notes) %></div>
+    <% end %>
+
     <% if segment.qr_code %>
       <div class="seg-qr">
         <%= image_tag segment.qr_code.data_uri, alt: "QR code", width: 140, height: 140 %>

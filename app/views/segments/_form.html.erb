@@ -55,6 +55,11 @@
     <% end %>
   </fieldset>
 
+  <div class="field">
+    <%= f.label :notes, "Notes" %>
+    <%= f.text_area :notes, rows: 4, placeholder: "Price, site number, vehicle length — anything the booking doesn't cover. Markdown works." %>
+  </div>
+
   <div class="form-actions">
     <%= f.submit submit_label, class: "btn-primary" %>
     <%= link_to "Cancel", trip_path(segment.trip) %>

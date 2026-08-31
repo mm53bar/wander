@@ -241,6 +241,44 @@ form.stack { display: flex; flex-direction: column; gap: 0.85rem; }
 }
 
 /* ── Responsive ──────────────────────────────────────────────────────────── */
+/* Rendered Markdown from trip/segment notes. Tuned to sit inside a .card without
+   the browser's default heading margins blowing the spacing out. */
+.prose { font-size: 0.9rem; line-height: 1.55; color: var(--text); }
+.prose > :first-child { margin-top: 0; }
+.prose > :last-child { margin-bottom: 0; }
+.prose h1, .prose h2, .prose h3, .prose h4 {
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 1.1rem 0 0.4rem;
+  color: var(--text);
+}
+.prose h1 { font-size: 1rem; }
+.prose h3, .prose h4 { color: var(--text-muted); }
+.prose p { margin: 0 0 0.6rem; }
+.prose ul, .prose ol { margin: 0 0 0.6rem; padding-left: 1.2rem; }
+.prose li { margin: 0.15rem 0; }
+.prose li > ul, .prose li > ol { margin: 0.15rem 0; }
+.prose code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+.prose a { color: var(--link); }
+.prose hr { border: 0; border-top: 1px solid var(--border); margin: 0.9rem 0; }
+.prose table { border-collapse: collapse; font-size: 0.85rem; }
+.prose th, .prose td { border: 1px solid var(--border); padding: 0.3rem 0.5rem; text-align: left; }
+
+/* Segment notes are secondary to the booking itself — indented and quieter. */
+.seg-notes {
+  margin: 0.5rem 0 0;
+  padding-left: 0.7rem;
+  border-left: 2px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 @media (max-width: 480px) {
   .site-header { padding: 0.65rem 1rem; }
   main { padding: 1rem 0.75rem 2.5rem; }

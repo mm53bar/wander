@@ -31,4 +31,10 @@ class SegmentsControllerTest < ActionDispatch::IntegrationTest
       delete segment_path(segments(:lisbon_hotel))
     end
   end
+
+  test "segment notes are saved and rendered on the trip page" do
+    patch segment_path(segments(:lisbon_flight)), params: { segment: { notes: "$252 for the crossing" } }
+    get trip_path(trips(:lisbon))
+    assert_select ".seg-notes", text: /\$252 for the crossing/
+  end
 end

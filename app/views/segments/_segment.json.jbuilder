@@ -9,6 +9,7 @@ json.starts_at_label segment.starts_at_label
 json.ends_at_label segment.ends_at_label
 json.location segment.location
 json.confirmation segment.confirmation
+json.notes segment.notes
 json.links segment.link_list do |link|
   json.label link.label
   json.url link.url

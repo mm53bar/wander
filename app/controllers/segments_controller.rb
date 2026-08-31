@@ -99,7 +99,7 @@ class SegmentsController < ApplicationController
   def segment_params
     permitted = params.require(:segment).permit(
       :trip_id, :kind, :emoji, :summary, :starts_at, :ends_at, :starts_at_label, :ends_at_label,
-      :location, :confirmation, links: [ :label, :url ]
+      :location, :confirmation, :notes, links: [ :label, :url ]
     )
     # A form submits links as a hash of index => {label, url}; the JSON API
     # sends a plain array. Normalise both to an array of hashes.

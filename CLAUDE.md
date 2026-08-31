@@ -38,6 +38,9 @@ no secrets, no network-specific names in commits.**
   `links` json), `QrCode` (base64 PNG in a text column), `RawEmail`.
   `IcsCalendar` builds the feed; `ArchivePastEmailsJob` (daily, `config/recurring.yml`)
   discards emails once a trip has ended.
+- **Notes are display-only.** `Trip#notes` / `Segment#notes` render as Markdown
+  and are deliberately NOT fed to the LLM or parsed — don't wire them into a
+  prompt without asking.
 - **One email can propose many segments** (`proposed_segments`), all filed to one
   trip. Undo must remove every one — see
   `docs/adr/20260831-many-segments-per-email.md`.

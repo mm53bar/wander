@@ -19,6 +19,11 @@
     <div class="field"><%= f.label :end_date %><%= f.date_field :end_date %></div>
   </div>
   <div class="field">
+    <%= f.label :notes, "Notes" %>
+    <%= f.text_area :notes, rows: 12, placeholder: "Itinerary, logistics, anything worth remembering. Markdown works." %>
+  </div>
+
+  <div class="field">
     <%= f.label :travellers %>
     <%= f.text_field :travellers, placeholder: "Two adults" %>
   </div>

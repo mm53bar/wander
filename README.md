@@ -89,6 +89,13 @@ and how that instant is resolved without letting the LLM do the arithmetic, why
 intake reads IMAP directly rather than through an archiver (and why there is no
 per-app intake address), and the hand-rolled iCalendar writer.
 
+### Notes
+
+Trips and segments each take free-text **notes**, rendered as Markdown (GFM) —
+the day-by-day plan and logistics on the trip, per-booking detail like price or
+site number on the segment. Notes are display-only: they are never sent to the
+LLM and never parsed.
+
 ### Email intake
 
 Intake polls the mailbox, classifies each message, captures the bookings, and

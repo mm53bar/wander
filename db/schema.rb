@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_000003) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_31_000004) do
   create_table "allowed_senders", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.string "address", null: false
@@ -91,6 +91,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000003) do
     t.string "kind", null: false
     t.json "links", default: [], null: false
     t.string "location"
+    t.text "notes"
     t.datetime "starts_at"
     t.string "starts_at_label"
     t.string "summary", null: false
@@ -108,6 +109,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000003) do
     t.string "destination"
     t.date "end_date", null: false
     t.string "name", null: false
+    t.text "notes"
     t.date "start_date", null: false
     t.string "travellers"
     t.datetime "updated_at", null: false

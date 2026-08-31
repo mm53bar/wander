@@ -23,14 +23,22 @@ class TripTriager
     never emit a leg the email doesn't actually contain. All of them belong to the
     same trip assignment.
 
+    A trip's route is its SEGMENTS' locations. The name and the label= are written
+    once, when the trip is created, and go stale as it grows — a trip labelled for
+    one city routinely ends up spanning several regions. Judge whether a booking
+    fits by comparing it to where the segments actually are, and never reject a
+    trip merely because the booking lies outside its label. Fall back to the label
+    only for a trip that has no segments yet.
+
     Choosing a trip:
     - A DATE MATCH line, when present, is a deterministic computation over the
       email's dates. Trust it over your own reading of them: attach to the trip it
-      names unless that trip's location is clearly inconsistent with the booking.
+      names unless the booking is clearly inconsistent with that trip's SEGMENT
+      locations — not merely with its label.
     - PREFER attaching to an existing trip. A booking belongs to a trip when its
       dates fall within, or are immediately adjacent to (starting on or near the
-      trip's last day), that trip's span AND its location is consistent with the
-      trip's route — near an existing stop or the destination.
+      trip's last day), that trip's span AND it fits the route its segments
+      describe — near an existing stop, or a plausible continuation of them.
     - A booking may EXTEND a trip at either end: if it sits on or just outside the
       trip's first or last day and is in the same area as the nearest stop, attach
       it, set extends_trip=true, and give suggested_end_date (booking's end date)
@@ -146,11 +154,14 @@ class TripTriager
     notes
   end
 
+  # label= rather than dest= on purpose: it is a human-written summary that may be
+  # out of date, and the prompt tells the model to treat it as such.
   def trip_block(t)
-    head = %(- id=#{t.id} "#{t.name}" [#{t.start_date}..#{t.end_date}] dest=#{t.destination.presence || "?"})
+    head = %(- id=#{t.id} "#{t.name}" [#{t.start_date}..#{t.end_date}] label=#{t.destination.presence || "?"})
     segs = t.segments.map do |s|
       "    · #{s.kind} #{s.starts_at&.to_date || s.local_date} @ #{(s.location.presence || s.summary).to_s[0, 50]}"
     end
+    segs = [ "    · (no segments yet — judge this one on the label)" ] if segs.empty?
     ([ head ] + segs).join("\n")
   end
 end

@@ -28,6 +28,13 @@
   </div>
 </div>
 
+<% if @trip.notes.present? %>
+  <div class="card">
+    <h2 class="section-label" style="margin-top:0;">Notes</h2>
+    <div class="prose"><%= markdown(@trip.notes) %></div>
+  </div>
+<% end %>
+
 <div class="card">
   <h2 class="section-label" style="margin-top:0;">Itinerary</h2>
   <% if @trip.ordered_segments.any? %>
