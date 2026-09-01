@@ -44,6 +44,28 @@ a { color: var(--link); }
 .site-header h1 a { color: var(--text); text-decoration: none; }
 .site-nav { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
+.site-menu-toggle {
+  display: none; align-items: center; justify-content: center;
+  width: 44px; height: 44px; margin: -0.5rem -0.4rem -0.5rem 0;
+  background: none; border: 0; border-radius: 8px; cursor: pointer; color: var(--text);
+}
+.site-menu-toggle:hover { background: var(--bg); }
+.site-menu-bars, .site-menu-bars::before, .site-menu-bars::after {
+  display: block; width: 18px; height: 2px; border-radius: 2px; background: currentColor;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+.site-menu-bars { position: relative; }
+.site-menu-bars::before, .site-menu-bars::after { content: ""; position: absolute; left: 0; }
+.site-menu-bars::before { top: -6px; }
+.site-menu-bars::after { top: 6px; }
+.menu-open .site-menu-bars { background: transparent; }
+.menu-open .site-menu-bars::before { transform: translateY(6px) rotate(45deg); }
+.menu-open .site-menu-bars::after { transform: translateY(-6px) rotate(-45deg); }
+
+/* Row of buttons attached to a record (trip actions, table row actions). */
+.record-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.record-actions form { margin: 0; }
+
 .btn-outline {
   font-size: 0.78rem;
   color: var(--text-muted);
@@ -191,7 +213,9 @@ main { max-width: 680px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
 }
 .raw-emails summary:hover { color: var(--text); }
 .raw-email-item { border-top: 1px solid var(--border); padding: 0.6rem 1.1rem; }
-.raw-email-header { font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.4rem; }
+.raw-email-header {
+  font-size: 0.78rem; color: var(--text-muted); margin-bottom: 0.4rem; overflow-wrap: break-word;
+}
 .raw-email-body pre {
   font-family: "SF Mono", "Fira Code", Menlo, monospace; font-size: 0.72rem;
   white-space: pre-wrap; word-break: break-word; color: var(--text); background: var(--bg);
@@ -204,6 +228,8 @@ main { max-width: 680px; margin: 0 auto; padding: 1.25rem 1rem 3rem; }
   box-shadow: var(--shadow); padding: 1.1rem 1.25rem; margin-bottom: 1.25rem;
 }
 .page-title { font-size: 1.2rem; font-weight: 700; margin: 0.5rem 0 1rem; }
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 0.75rem 1rem; }
+.card-head > :first-child { min-width: 0; flex: 1 1 14rem; }
 .subtle { color: var(--text-muted); font-size: 0.82rem; }
 .crumb { font-size: 0.8rem; margin-bottom: 0.75rem; }
 
@@ -215,20 +241,31 @@ form.stack { display: flex; flex-direction: column; gap: 0.85rem; }
   border: 1px solid var(--border); border-radius: 6px; background: #fff; color: var(--text); width: 100%;
 }
 .field textarea { min-height: 5rem; resize: vertical; }
-.field-row { display: flex; gap: 0.85rem; flex-wrap: wrap; }
+.field-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.85rem; }
 .field-row .field { flex: 1; min-width: 8rem; }
-.form-actions { display: flex; align-items: center; gap: 1rem; margin-top: 0.35rem; }
+.inbox-file-form { gap: 0.5rem; margin-top: 0.4rem; }
+.form-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; margin-top: 0.35rem; }
 .errors {
   background: var(--accent-light); color: var(--accent); border-radius: 6px;
   padding: 0.6rem 0.9rem; font-size: 0.82rem;
 }
 .errors ul { margin: 0.25rem 0 0 1.1rem; }
 
+.settings-table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+.settings-table tr { border-top: 1px solid var(--border); }
+.settings-table td { padding: 0.45rem 0.5rem; vertical-align: middle; }
+.settings-table .st-value {
+  padding-left: 0; font-family: "SF Mono", "Fira Code", Menlo, monospace; overflow-wrap: break-word;
+}
+.settings-table .st-note { color: var(--text-muted); overflow-wrap: break-word; }
+.settings-table .st-actions { padding-right: 0; }
+.settings-table .st-actions .record-actions { flex-wrap: nowrap; justify-content: flex-end; }
+
 /* ── Print ───────────────────────────────────────────────────────────────── */
 @media print {
   body { background: #fff; font-size: 11pt; }
   .site-header { position: static; border-bottom: 1pt solid #ccc; }
-  .site-nav, .flash, .seg-actions { display: none; }
+  .site-nav, .site-menu-toggle, .record-actions, .flash, .seg-actions { display: none !important; }
   main { max-width: none; padding: 0; }
   .trip-card { border: 1pt solid #ccc; box-shadow: none; break-inside: avoid; margin-bottom: 1.5rem; }
   .trip-card.past { opacity: 1; }
@@ -240,7 +277,6 @@ form.stack { display: flex; flex-direction: column; gap: 0.85rem; }
   .seg-links a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.7em; color: #666; }
 }
 
-/* ── Responsive ──────────────────────────────────────────────────────────── */
 /* Rendered Markdown from trip/segment notes. Tuned to sit inside a .card without
    the browser's default heading margins blowing the spacing out. */
 .prose { font-size: 0.9rem; line-height: 1.55; color: var(--text); }
@@ -279,9 +315,56 @@ form.stack { display: flex; flex-direction: column; gap: 0.85rem; }
   font-size: 0.85rem;
 }
 
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+/* Phones. The header collapses to a single 48px bar with a menu button, but only
+   once the Stimulus controller has added .js-menu — without it the nav stays
+   inline and reachable. */
+@media (max-width: 639px) {
+  .site-header { padding: 0.5rem 0.85rem; }
+  .site-header.js-menu .site-menu-toggle { display: inline-flex; }
+
+  .site-header.js-menu .site-nav {
+    display: none;
+    position: absolute; top: 100%; left: 0; right: 0;
+    flex-direction: column; gap: 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    padding: 0.25rem 0;
+  }
+  .site-header.js-menu.menu-open .site-nav { display: flex; }
+  .site-header.js-menu .site-nav .btn-outline {
+    display: flex; align-items: center; min-height: 44px;
+    border: 0; border-radius: 0; background: none;
+    font-size: 0.95rem; color: var(--text); padding: 0.5rem 0.9rem;
+  }
+  .site-header.js-menu .site-nav .btn-outline:hover { background: var(--bg); }
+
+  main { padding: 1rem 0.85rem 2.5rem; }
+  .flash { margin-left: 0.85rem; margin-right: 0.85rem; }
+
+  /* 16px keeps iOS Safari from zooming the page when a field takes focus. */
+  .field input, .field select, .field textarea { font-size: 16px; }
+
+  .btn-outline { padding: 0.45rem 0.85rem; }
+  .btn-primary { padding: 0.55rem 1.1rem; }
+  .seg-actions { gap: 1.1rem; }
+  .seg-actions a, .seg-actions button { font-size: 0.8rem; padding: 0.25rem 0; }
+
+  .settings-table, .settings-table tbody, .settings-table tr, .settings-table td { display: block; }
+  .settings-table tr { padding: 0.7rem 0; }
+  .settings-table td { padding: 0; }
+  .settings-table .st-note:empty { display: none; }
+  .settings-table .st-actions { margin-top: 0.5rem; }
+  .settings-table .st-actions .record-actions { justify-content: flex-start; }
+}
+
 @media (max-width: 480px) {
-  .site-header { padding: 0.65rem 1rem; }
-  main { padding: 1rem 0.75rem 2.5rem; }
   .trip-card h2 { font-size: 0.98rem; }
   .seg-summary { font-size: 0.88rem; }
+  .seg-right { padding-right: 0.85rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-menu-bars, .site-menu-bars::before, .site-menu-bars::after { transition: none; }
 }

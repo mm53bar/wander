@@ -10,7 +10,7 @@
 </p>
 
 <div class="card">
-  <%= form_with model: @safe_sender, class: "field-row", style: "align-items:flex-end; margin:0;" do |f| %>
+  <%= form_with model: @safe_sender, class: "field-row" do |f| %>
     <div class="field" style="flex:2;">
       <%= f.label :value, "Address or domain" %>
       <%= f.text_field :value, placeholder: "no-reply@bcferries.com  or  aircanada.ca", required: true %>
@@ -28,16 +28,18 @@
 
 <div class="card">
   <p class="subtle"><%= pluralize(@safe_senders.size, "sender") %> · <%= @safe_senders.active.count %> active</p>
-  <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+  <table class="settings-table">
     <% @safe_senders.each do |s| %>
-      <tr style="border-top:1px solid var(--border);">
-        <td style="padding:0.45rem 0.5rem 0.45rem 0; font-family:monospace;"><%= s.value %></td>
-        <td style="padding:0.45rem 0.5rem; color:var(--text-muted);"><%= s.name %></td>
-        <td style="padding:0.45rem 0; text-align:right; white-space:nowrap;">
-          <%= button_to (s.active? ? "Disable" : "Enable"), safe_sender_path(s), method: :patch,
-                params: { safe_sender: { active: !s.active } }, class: "btn-outline" %>
-          <%= button_to "Remove", safe_sender_path(s), method: :delete, class: "btn-danger",
-                form: { style: "display:inline;", data: { turbo_confirm: "Remove #{s.value}?" } } %>
+      <tr>
+        <td class="st-value"><%= s.value %></td>
+        <td class="st-note"><%= s.name %></td>
+        <td class="st-actions">
+          <div class="record-actions">
+            <%= button_to (s.active? ? "Disable" : "Enable"), safe_sender_path(s), method: :patch,
+                  params: { safe_sender: { active: !s.active } }, class: "btn-outline" %>
+            <%= button_to "Remove", safe_sender_path(s), method: :delete, class: "btn-danger",
+                  form: { data: { turbo_confirm: "Remove #{s.value}?" } } %>
+          </div>
         </td>
       </tr>
     <% end %>
@@ -57,7 +59,7 @@
 </p>
 
 <div class="card">
-  <%= form_with model: @allowed_sender, class: "field-row", style: "align-items:flex-end; margin:0;" do |f| %>
+  <%= form_with model: @allowed_sender, class: "field-row" do |f| %>
     <div class="field" style="flex:2;">
       <%= f.label :address, "Email address" %>
       <%= f.text_field :address, placeholder: "you@example.com", required: true %>
@@ -74,16 +76,18 @@
   <% if @allowed_senders.none? %>
     <p class="subtle" style="margin:0;">No addresses yet.</p>
   <% else %>
-    <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+    <table class="settings-table">
       <% @allowed_senders.each do |s| %>
-        <tr style="border-top:1px solid var(--border);">
-          <td style="padding:0.45rem 0.5rem 0.45rem 0; font-family:monospace;"><%= s.address %></td>
-          <td style="padding:0.45rem 0.5rem; color:var(--text-muted);"><%= s.note %></td>
-          <td style="padding:0.45rem 0; text-align:right; white-space:nowrap;">
-            <%= button_to (s.active? ? "Disable" : "Enable"), allowed_sender_path(s), method: :patch,
-                  params: { allowed_sender: { active: !s.active } }, class: "btn-outline" %>
-            <%= button_to "Remove", allowed_sender_path(s), method: :delete, class: "btn-danger",
-                  form: { style: "display:inline;", data: { turbo_confirm: "Remove #{s.address}?" } } %>
+        <tr>
+          <td class="st-value"><%= s.address %></td>
+          <td class="st-note"><%= s.note %></td>
+          <td class="st-actions">
+            <div class="record-actions">
+              <%= button_to (s.active? ? "Disable" : "Enable"), allowed_sender_path(s), method: :patch,
+                    params: { allowed_sender: { active: !s.active } }, class: "btn-outline" %>
+              <%= button_to "Remove", allowed_sender_path(s), method: :delete, class: "btn-danger",
+                    form: { data: { turbo_confirm: "Remove #{s.address}?" } } %>
+            </div>
           </td>
         </tr>
       <% end %>

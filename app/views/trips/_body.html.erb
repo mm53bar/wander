@@ -1,13 +1,13 @@
 <%
   meta = [ trip.destination, trip_date_range(trip), trip.travellers ].select(&:present?)
 %>
-<p class="trip-meta"><%= safe_join(meta, raw(" &nbsp;·&nbsp; ")) %></p>
+<p class="trip-meta"><%= safe_join(meta, " · ") %></p>
 <% if trip.booked_via.present? || trip.booking_ref.present? %>
   <p class="trip-booking">
     <% parts = [] %>
     <% parts << tag.span(trip.booked_via, class: "trip-booked-via") if trip.booked_via.present? %>
     <% parts << tag.span("Ref: #{trip.booking_ref}", class: "trip-booking-ref") if trip.booking_ref.present? %>
-    <%= safe_join(parts, raw(" &nbsp;·&nbsp; ")) %>
+    <%= safe_join(parts, " · ") %>
   </p>
 <% end %>
 
@@ -22,8 +22,8 @@
     <% emails.each do |email| %>
       <div class="raw-email-item">
         <div class="raw-email-header">
-          <strong><%= email.subject %></strong> &nbsp;·&nbsp;
-          <%= email.from_address %> &nbsp;·&nbsp;
+          <strong><%= email.subject %></strong> ·
+          <%= email.from_address %> ·
           <%= email.received_at&.strftime("%Y-%m-%d %H:%M") %>
         </div>
         <div class="raw-email-body"><pre><%= email.body %></pre></div>

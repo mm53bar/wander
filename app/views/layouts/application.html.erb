@@ -20,9 +20,15 @@
   </head>
 
   <body>
-    <header class="site-header">
+    <header class="site-header" data-controller="menu"
+            data-action="pointerdown@window->menu#close keydown@window->menu#closeOnEscape">
       <h1><%= link_to "Travel", root_path %></h1>
-      <nav class="site-nav">
+      <button type="button" class="site-menu-toggle" hidden
+              aria-expanded="false" aria-controls="site-nav" aria-label="Menu"
+              data-menu-target="button" data-action="menu#toggle">
+        <span class="site-menu-bars" aria-hidden="true"></span>
+      </button>
+      <nav class="site-nav" id="site-nav">
         <% inbox_count = InboundEmail.received.count %>
         <%= link_to (inbox_count.positive? ? "Inbox (#{inbox_count})" : "Inbox"), inbound_emails_path, class: "btn-outline" %>
         <%= link_to "New trip", new_trip_path, class: "btn-outline" %>

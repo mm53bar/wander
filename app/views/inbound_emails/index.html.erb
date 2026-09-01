@@ -15,7 +15,7 @@
   <div class="card">
     <div class="raw-email-header">
       <strong><%= email.subject.presence || "(no subject)" %></strong><br>
-      <%= email.from_address %> &nbsp;·&nbsp; <%= email.received_at.strftime("%Y-%m-%d %H:%M") %>
+      <%= email.from_address %> · <%= email.received_at.strftime("%Y-%m-%d %H:%M") %>
     </div>
 
     <% if email.proposal? %>
@@ -38,12 +38,12 @@
           <% if email.proposed_trip %>→ <strong><%= email.proposed_trip.name %></strong><%
             elsif email.proposed_new_trip.present? %>→ <strong>New trip: <%= email.proposed_new_trip["name"] %></strong>
             (<%= email.proposed_new_trip["start_date"] %>–<%= email.proposed_new_trip["end_date"] %>)<% end %>
-          &nbsp;·&nbsp; <%= email.confidence %> confidence
+          · <%= email.confidence %> confidence
           <% if email.reason.present? %><br><em><%= email.reason %></em><% end %>
         </p>
       </div>
 
-      <%= form_with url: accept_inbound_email_path(email), method: :post, class: "stack", style: "gap:0.6rem;" do %>
+      <%= form_with url: accept_inbound_email_path(email), method: :post, class: "stack" do %>
         <div class="field" style="max-width:26rem;">
           <label>Trip</label>
           <%= select_tag :trip_id, trip_options_for(email), include_blank: false %>
@@ -64,7 +64,7 @@
     <% else %>
       <%# No LLM proposal — fall back to filing as a source email %>
       <% suggested = @suggestions[email] %>
-      <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row", style: "align-items:flex-end; gap:0.5rem; margin:0.4rem 0 0;" do %>
+      <%= form_with url: file_inbound_email_path(email), method: :post, class: "field-row inbox-file-form" do %>
         <div class="field" style="min-width:15rem;">
           <label>File to trip</label>
           <%= select_tag :trip_id, options_from_collection_for_select(@trips, :id, :label_with_dates, suggested&.id), include_blank: "Choose a trip…", required: true %>
@@ -85,7 +85,7 @@
   <details class="section-past">
     <summary class="section-label">Auto-filed (<%= @auto_filed.size %>)</summary>
     <% @auto_filed.each do |email| %>
-      <div class="card" style="display:flex; justify-content:space-between; align-items:center; gap:1rem;">
+      <div class="card card-head" style="align-items:center;">
         <div>
           <strong><%= email.subject %></strong><br>
           <span class="subtle">→ <%= email.trip&.name %></span>
