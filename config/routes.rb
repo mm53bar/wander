@@ -44,7 +44,8 @@ Rails.application.routes.draw do
   # Draft an itinerary segment from a stored source email via the LLM.
   get "raw_emails/:id/draft_segment", to: "segments#draft_from_email", as: :draft_segment
 
-  # Subscribable iCalendar feed of every timed segment. calendar_path(format: :ics)
-  # renders /calendar.ics; the bare /calendar redirects to it.
+  # Subscribable iCalendar feed of every timed segment. The format default means
+  # url_for omits the extension, so anything building a subscribe URL has to
+  # append ".ics" itself — calendar clients sniff on it.
   get "calendar", to: "calendars#show", as: :calendar, defaults: { format: "ics" }
 end

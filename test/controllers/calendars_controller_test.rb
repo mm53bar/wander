@@ -8,4 +8,9 @@ class CalendarsControllerTest < ActionDispatch::IntegrationTest
     assert_includes response.body, "BEGIN:VCALENDAR"
     assert_includes response.body, "SUMMARY:✈️ EX204"
   end
+
+  test "the subscribe link is a webcal URL ending in .ics" do
+    get root_path
+    assert_select "a[href=?]", "webcal://www.example.com/calendar.ics"
+  end
 end
