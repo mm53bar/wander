@@ -32,7 +32,7 @@
         <% inbox_count = InboundEmail.received.count %>
         <%= link_to (inbox_count.positive? ? "Inbox (#{inbox_count})" : "Inbox"), inbound_emails_path, class: "btn-outline" %>
         <%= link_to "New trip", new_trip_path, class: "btn-outline" %>
-        <%= link_to "Subscribe to Calendar", calendar_path(format: :ics), class: "btn-outline" %>
+        <%= link_to "Subscribe to Calendar", calendar_url(format: :ics, protocol: "webcal"), class: "btn-outline" %>
         <%= link_to "Settings", settings_path, class: "btn-outline" %>
       </nav>
     </header>

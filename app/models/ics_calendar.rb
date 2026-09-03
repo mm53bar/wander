@@ -4,6 +4,7 @@
 class IcsCalendar
   PRODID = "-//wander//Travel//EN".freeze
   CALNAME = "Travel".freeze
+  MAX_OCTETS = 75
 
   def initialize(segments, now: Time.current)
     @segments = segments
@@ -22,7 +23,7 @@ class IcsCalendar
     @segments.each { |segment| lines.concat(vevent(segment)) if segment.starts_at }
     lines << "END:VCALENDAR"
     # RFC 5545 requires CRLF line endings and a trailing one.
-    lines.join("\r\n") + "\r\n"
+    lines.map { |line| fold(line) }.join("\r\n") + "\r\n"
   end
 
   private
@@ -46,6 +47,26 @@ class IcsCalendar
   # UTC basic format: 20260309T200000Z
   def ics_time(time)
     time.utc.strftime("%Y%m%dT%H%M%SZ")
+  end
+
+  # RFC 5545 caps a content line at 75 octets; longer ones continue on the next
+  # line behind a single space. Octets, not characters — an emoji costs four —
+  # and a multi-byte character must never be split across the break.
+  def fold(line)
+    return line if line.bytesize <= MAX_OCTETS
+
+    folded = +""
+    current = +""
+    limit = MAX_OCTETS
+    line.each_char do |char|
+      if current.bytesize + char.bytesize > limit
+        folded << current << "\r\n "
+        current = +""
+        limit = MAX_OCTETS - 1
+      end
+      current << char
+    end
+    folded << current
   end
 
   def escape(value)
