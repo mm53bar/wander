@@ -52,6 +52,16 @@
     <script>
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker.register("/service-worker.js");
+
+        // A page served from the offline cache can predate what the server
+        // holds; the worker says so once the real response arrives. Typing
+        // wins over freshness — a reload would discard what's in the field.
+        navigator.serviceWorker.addEventListener("message", (event) => {
+          if (event.data?.type !== "content-updated") return;
+          if (event.data.url !== location.href) return;
+          if (["INPUT", "TEXTAREA", "SELECT"].includes(document.activeElement?.tagName)) return;
+          location.reload();
+        });
       }
     </script>
   </body>

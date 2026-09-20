@@ -49,3 +49,6 @@ jobs:
         env:
           RAILS_ENV: test
         run: bin/rails db:test:prepare test
+
+      - name: Run service worker tests
+        run: node --test 'test/javascript/*.mjs'

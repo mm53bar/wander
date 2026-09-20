@@ -6,6 +6,10 @@ require "rails/all"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# Loaded here rather than autoloaded: the middleware stack is assembled during
+# initialization, and autoloading is not allowed to run that early.
+require_relative "../lib/stable_url_cache_control"
+
 module Wander
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -20,7 +24,10 @@ module Wander
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    config.autoload_lib(ignore: %w[assets tasks stable_url_cache_control.rb])
+
+    # Outermost, so it sees the static file server's response on the way out.
+    config.middleware.insert_before 0, StableUrlCacheControl
 
     # The whole app works in one time zone, taken from the TZ env var (UTC by
     # default). Segment times are stored as absolute UTC instants; the
