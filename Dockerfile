@@ -52,16 +52,13 @@ RUN bundle install && \
 # Copy application code
 COPY . .
 
-# Capture the git commit SHA so the running app can show which build it's
-# serving. .git is removed afterwards so it doesn't ride along into the
-# final image (which only does COPY --from=build).
-RUN if [ -d .git ]; then \
-      git rev-parse HEAD > REVISION && \
-      git rev-parse --short HEAD > REVISION_SHORT; \
-    else \
-      echo "unknown" > REVISION && echo "unknown" > REVISION_SHORT; \
-    fi && \
-    rm -rf .git
+# Record which build the running app is serving. .dockerignore keeps /.git out
+# of the build context, so the SHA is passed in rather than read from a
+# repository that isn't here — .github/workflows/build.yml supplies it. A build
+# that doesn't gets "unknown", which is the footer's way of saying so.
+ARG GIT_SHA=unknown
+RUN printf '%s' "$GIT_SHA" > REVISION && \
+    printf '%s' "$GIT_SHA" | cut -c1-7 > REVISION_SHORT
 
 # Precompile bootsnap code for faster boot times.
 # -j 1 disable parallel compilation to avoid a QEMU bug: https://github.com/rails/bootsnap/issues/495
