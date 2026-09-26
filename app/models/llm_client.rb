@@ -44,13 +44,11 @@ class LlmClient
       messages: [ { role: "system", content: system }, { role: "user", content: user } ]
     }.to_json
 
-    res = Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
-                          open_timeout: 10, read_timeout: timeout) { |h| h.request(req) }
-    raise Unavailable, "HTTP #{res.code}" if res.code.to_i >= 500
+    res = post(uri, req, timeout)
+    raise Unavailable, "HTTP #{res.code}" if res.code.to_i >= 500 || res.code.to_i == 429
     return nil unless res.code.to_i.between?(200, 299)
 
-    content = JSON.parse(res.body).dig("choices", 0, "message", "content")
-    content && JSON.parse(content)
+    self.class.parse_content(JSON.parse(res.body).dig("choices", 0, "message", "content"))
   rescue *TRANSIENT => e
     Rails.logger.warn("LlmClient unavailable: #{e.class}: #{e.message}")
     raise Unavailable, "#{e.class}: #{e.message}"
@@ -59,5 +57,19 @@ class LlmClient
   rescue StandardError => e
     Rails.logger.error("LlmClient: #{e.class}: #{e.message}")
     nil
+  end
+
+  # Some models (gemma4) wrap json-mode output in a Markdown code fence anyway.
+  def self.parse_content(content)
+    return nil if content.nil?
+    fenced = content.match(/\A\s*```[\w-]*\s*\n(.*?)\n?\s*```\s*\z/m)
+    JSON.parse(fenced ? fenced[1] : content)
+  end
+
+  private
+
+  def post(uri, req, timeout)
+    Net::HTTP.start(uri.host, uri.port, use_ssl: uri.scheme == "https",
+                    open_timeout: 10, read_timeout: timeout) { |h| h.request(req) }
   end
 end
