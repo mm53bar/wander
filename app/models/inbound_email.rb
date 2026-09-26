@@ -1,12 +1,14 @@
 # A message the email intake pulled from the shared inbox and its travel
 # classifier flagged as travel-related. It sits in wander's own inbox until a
 # human files it onto a trip (copying it into that trip's source emails) or
-# ignores it as a false positive. Non-travel mail is never stored here — the
-# intake leaves it untouched in the shared mailbox (see EmailIntakeJob).
+# ignores it as a false positive. Mail the classifier doesn't flag is never
+# stored here, and mail triage says isn't a booking is "released": kept only as
+# its Message-ID so intake never takes it, and left in the shared mailbox for
+# other apps (see EmailIntakeJob).
 class InboundEmail < ApplicationRecord
   belongs_to :trip, optional: true
 
-  STATUSES = %w[received filed ignored duplicate].freeze
+  STATUSES = %w[received filed ignored duplicate released].freeze
 
   # Triage runs again on each intake pass until it works or the attempts run out.
   # Only then is a dead end reported to a human — a single failure is far more
@@ -36,6 +38,25 @@ class InboundEmail < ApplicationRecord
 
   def ignore!
     update!(status: "ignored")
+  end
+
+  def release!
+    update!(status: "released", body: nil)
+  end
+
+  def awaiting_triage?
+    status == "received" && proposed_segments.nil? && triage_attempts < MAX_TRIAGE_ATTEMPTS
+  end
+
+  # Whether intake may take the message out of the shared inbox: a human filed
+  # it, it repeats a booking already recorded, or triage read it as a booking.
+  # Anything else may belong to another app reading the same mailbox.
+  def claimable?
+    case status
+    when "filed", "duplicate" then true
+    when "received" then !proposed_segments.nil?
+    else false
+    end
   end
   def email_text
     "#{subject}\n#{body}"

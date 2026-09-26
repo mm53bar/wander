@@ -40,6 +40,37 @@ class TravelEmailClassifierTest < ActiveSupport::TestCase
     assert_not r.travel?
   end
 
+  test "does not flag a retail order confirmation from an unlisted sender" do
+    r = classify(from: "orders@outfitter.example", subject: "Your order is confirmed",
+                 body: "Thanks! Order confirmation number 12345. Your order will arrive in 3-5 days.")
+    assert_not r.travel?
+    assert_includes r.signals, "shopping:your order"
+  end
+
+  test "does not flag a shipping notice that gives an arrival date" do
+    r = classify(from: "ship@outfitter.example", subject: "Your order has shipped",
+                 body: "Tracking number 1Z999. Estimated arrival Oct 2. Confirmation 555.")
+    assert_not r.travel?
+  end
+
+  test "generic confirmation words alone never flag a message" do
+    r = classify(from: "desk@clinic.example", subject: "Your appointment is confirmed",
+                 body: "Confirmation number 42. Please arrive 10 minutes early.")
+    assert_not r.travel?
+  end
+
+  test "a listed sender overrides the shopping language" do
+    r = classify(from: "no-reply@bcferries.com", subject: "Your itinerary and receipt",
+                 body: "Order number 998. Your booking reference is B123.")
+    assert r.travel?
+  end
+
+  test "an unlisted provider's booking still counts when it also says order" do
+    r = classify(from: "hello@kayaktours.example", subject: "Your order is confirmed",
+                 body: "Your reservation for the sunset tour. Check-in at the dock at 6pm.")
+    assert r.travel?
+  end
+
   test "defaults to the managed SafeSender list when none is passed" do
     r = TravelEmailClassifier.new(from: "x@bcferries.com", subject: "Booking confirmation", body: "itinerary").result
     assert r.travel?  # bcferries.com is in fixtures

@@ -17,7 +17,7 @@ auto-archived once the trip is over.
 - QR code storage per segment (booking passes, tickets)
 - Subscribable iCalendar feed at `/calendar.ics`
 - Source-email ingestion with automatic archiving after a trip ends
-- Travel-email intake: scans a shared mailbox (via the Bichon archiver), identifies booking emails, and files them for review
+- Travel-email intake: polls a shared mailbox over IMAP (read state untouched), identifies booking emails, and moves them into its own folder only once the LLM confirms they're bookings
 - Managed **safe-sender list** (Settings page) drives travel detection — matched in the body too, for forwarded bookings
 - Draft an itinerary segment from a booking email with an LLM (review before saving; OpenAI-compatible, e.g. Ollama)
 - Inbox triage: the LLM proposes the segment AND the trip (existing, extended, or new); high-confidence existing-trip matches auto-file (with undo), the rest wait for one-click review

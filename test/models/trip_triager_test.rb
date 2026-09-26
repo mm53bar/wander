@@ -33,6 +33,16 @@ class TripTriagerTest < ActiveSupport::TestCase
     assert_equal %w[A B], proposal[:segments].map { |s| s["confirmation"] }
   end
 
+  test "reports an email that isn't a travel booking" do
+    fake = Fake.new("travel_booking" => false)
+    assert_equal({ travel: false }, TripTriager.new(inbound_emails(:pending_flight), client: fake).triage)
+  end
+
+  test "treats a proposal without the travel verdict as a booking" do
+    fake = Fake.new("segments" => [ { "kind" => "ferry" } ], "assignment" => { "confidence" => "low" })
+    assert TripTriager.new(inbound_emails(:pending_flight), client: fake).triage[:travel]
+  end
+
   test "rejects a trip id that isn't a real trip" do
     fake = Fake.new("segments" => [ { "kind" => "x" } ], "assignment" => { "trip_id" => 999_999, "confidence" => "low" })
     assert_nil TripTriager.new(inbound_emails(:pending_flight), client: fake).triage[:trip_id]

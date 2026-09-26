@@ -100,6 +100,81 @@ class EmailIntakeJobTest < ActiveJob::TestCase
         body: "Your itinerary and booking reference.")
   end
 
+  # Answers every triage call the same way, counting the calls.
+  class ScriptedLlm
+    attr_reader :calls
+
+    def initialize(data)
+      @data = data
+      @calls = 0
+    end
+
+    def configured? = true
+
+    def complete_json(**)
+      @calls += 1
+      @data
+    end
+  end
+
+  # The fixtures are waiting for triage too, and would be retried in every pass.
+  def only_new_mail_awaits_triage
+    InboundEmail.update_all(proposed_segments: [])
+  end
+
+  def booking_answer
+    { "travel_booking" => true, "segments" => [ { "kind" => "ferry", "summary" => "Ferry" } ],
+      "assignment" => { "confidence" => "low" } }
+  end
+
+  test "moves a message only once triage reads it as a booking" do
+    mailbox = FakeMailbox.new([ travel_message ])
+    EmailIntakeJob.perform_now(mailbox: mailbox, llm: ScriptedLlm.new(booking_answer))
+
+    assert_equal [ "t9@x" ], mailbox.archived
+    assert InboundEmail.find_by(message_id: "t9@x").claimable?
+  end
+
+  test "releases what triage says isn't a booking, and never touches it again" do
+    only_new_mail_awaits_triage
+    llm = ScriptedLlm.new("travel_booking" => false)
+    mailbox = FakeMailbox.new([ travel_message ])
+    2.times { EmailIntakeJob.perform_now(mailbox: mailbox, llm: llm) }
+
+    assert_empty mailbox.archived, "another app's mail must stay in the shared inbox"
+    released = InboundEmail.find_by(message_id: "t9@x")
+    assert_equal "released", released.status
+    assert_nil released.body
+    assert_equal 1, llm.calls, "a released message is not re-triaged"
+    assert_not_includes InboundEmail.received, released
+  end
+
+  test "leaves a message in the shared inbox while triage can't reach the LLM" do
+    mailbox = FakeMailbox.new([ travel_message ])
+    EmailIntakeJob.perform_now(mailbox: mailbox, llm: UnavailableLlm.new)
+    assert_empty mailbox.archived
+
+    EmailIntakeJob.perform_now(mailbox: mailbox, llm: ScriptedLlm.new(booking_answer))
+    assert_equal [ "t9@x" ], mailbox.archived
+  end
+
+  test "triages a message waiting in the inbox once per pass" do
+    only_new_mail_awaits_triage
+    llm = ScriptedLlm.new(nil)
+    EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([ travel_message ]), llm: llm)
+    assert_equal 1, llm.calls
+  end
+
+  test "recognises a message with no Message-ID on a later pass" do
+    only_new_mail_awaits_triage
+    llm = ScriptedLlm.new("travel_booking" => false)
+    mailbox = FakeMailbox.new([ travel_message(nil) ])
+    assert_difference -> { InboundEmail.count }, 1 do
+      2.times { EmailIntakeJob.perform_now(mailbox: mailbox, llm: llm) }
+    end
+    assert_equal 1, llm.calls
+  end
+
   test "a brief LLM outage doesn't notify, and leaves the booking to be retried" do
     inbound = inbound_emails(:pending_flight)
     inbound.update!(proposed_segments: nil, triage_attempts: 0)

@@ -25,9 +25,11 @@ no secrets, no network-specific names in commits.**
   Don't "helpfully" ask the model for an ISO timestamp again —
   `docs/adr/20260829-deterministic-segment-times.md`.
 - **Intake shares a mailbox with other apps.** Never set `\Seen`; only ever move
-  messages wander itself captured, and only into wander's own folder. Capture
-  before moving. See `docs/adr/20260829-imap-intake-direct-not-bichon.md`, which
-  also records why there is no per-app `travel@` intake address.
+  messages wander itself captured and confirmed (`InboundEmail#claimable?`), and
+  only into wander's own folder. Capture before moving. A `released` row is mail
+  triage said isn't a booking — never move it. See
+  `docs/adr/20260829-imap-intake-direct-not-bichon.md` (and why there is no
+  per-app `travel@` address) and `docs/adr/20260926-confirm-before-claiming-shared-mail.md`.
 - **`AllowedSender` is not `SafeSender`.** `SafeSender` is travel providers,
   matched anywhere in a message including a forwarded body. `AllowedSender` is
   who wander may *reply* to, matched on the `From` header only. Never merge them.

@@ -1,14 +1,16 @@
 # Reads the shared casey@ mailbox over IMAP, classifies each message, and
 # captures the travel-related ones into wander's inbox (InboundEmail).
 #
-# Anything wander claims is moved out of the shared INBOX into its own folder,
-# so what remains there is by definition not wander's. Capture happens BEFORE
-# the move: if storing fails, the message stays put for the next run rather
-# than disappearing from a mailbox other people read.
+# Other apps read the same mailbox, so wander only moves a message out of INBOX
+# into its own folder once it is sure the message is its own: triage (the LLM)
+# has read it as a booking, it repeats a recorded booking, or a human filed it.
+# A message triage says isn't a booking is released and never touched again. The
+# classifier alone decides only when no LLM is configured. Capture happens BEFORE
+# any move, so a failed save leaves the message where it was.
 #
-# Scheduled from config/recurring.yml. Dedup is by Message-ID, so a message that
-# was already captured is moved out without being captured twice. Not configured
-# (no IMAP env) → does nothing, keeping dev/CI quiet.
+# Scheduled from config/recurring.yml. Dedup is by Message-ID, so a message seen
+# on an earlier run is picked up where it left off rather than captured twice.
+# Not configured (no IMAP env) → does nothing, keeping dev/CI quiet.
 class EmailIntakeJob < ApplicationJob
   queue_as :default
 
@@ -17,6 +19,7 @@ class EmailIntakeJob < ApplicationJob
     return unless mailbox.configured?
 
     @llm = llm
+    @seen = []
 
     mailbox.open do |session|
       session.each_message { |message| handle(session, message) }
@@ -27,41 +30,42 @@ class EmailIntakeJob < ApplicationJob
 
   private
 
-  # Intake never re-reads a message it has already claimed, so a booking captured
-  # while the LLM was unreachable would otherwise keep its empty proposal for
-  # good. Picked up again here on each pass until triage works or the attempts
-  # run out.
+  # Rows whose message wasn't in INBOX this pass (moved before this job waited
+  # for triage) still need their proposal; those that were got it in handle.
   def retry_awaiting_triage
-    InboundEmail.awaiting_triage.each { |inbound| triage(inbound) }
+    InboundEmail.awaiting_triage.where.not(id: @seen).each { |inbound| triage(inbound) }
   end
 
   # One bad message must not strand the rest of the batch behind it.
   def handle(session, message)
-    return archive_known(session, message) if claimed?(message)
+    inbound = InboundEmail.find_by(message_id: intake_id(message))
+    if inbound.nil?
+      result = TravelEmailClassifier.new(from: message.from, subject: message.subject, body: message.body).result
+      return unless result.travel?
 
-    result = TravelEmailClassifier.new(from: message.from, subject: message.subject, body: message.body).result
-    return unless result.travel?
+      inbound = capture(message, result)
+    end
+    @seen << inbound.id
 
-    inbound = capture(message, result)
-    session.archive!(message)
-    triage(inbound)
+    triage(inbound) if inbound.awaiting_triage?
+    session.archive!(message) if claim?(inbound)
   rescue StandardError => e
     Rails.logger.error("EmailIntakeJob: uid=#{message.uid} #{e.class}: #{e.message}")
   end
 
-  # Already in wander's inbox from an earlier run (or an earlier transport) —
-  # still needs moving out of the shared mailbox.
-  def claimed?(message)
-    message.message_id.present? && InboundEmail.exists?(message_id: message.message_id)
+  # A message with no Message-ID header is keyed by UID, so a later pass still
+  # recognises it (and a released one stays released).
+  def intake_id(message)
+    message.message_id.presence || "imap-#{message.uid}"
   end
 
-  def archive_known(session, message)
-    session.archive!(message)
+  def claim?(inbound)
+    inbound.claimable? || (!@llm.configured? && inbound.status == "received")
   end
 
   def capture(message, result)
     InboundEmail.create!(
-      message_id: message.message_id.presence || "imap-#{message.uid}",
+      message_id: intake_id(message),
       references: message.references.join(" ").presence,
       from_address: message.from, subject: message.subject, body: message.body,
       received_at: message.received_at, score: result.score, signals: result.signals
@@ -84,6 +88,7 @@ class EmailIntakeJob < ApplicationJob
 
     proposal = attempt_triage(inbound, triager)
     return if proposal.nil?
+    return inbound.release! unless proposal[:travel]
 
     inbound.apply_proposal!(proposal)
     return IntakeNotifier.new(inbound).undated! unless inbound.proposed_start_resolved?

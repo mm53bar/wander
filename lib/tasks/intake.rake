@@ -34,6 +34,10 @@ namespace :intake do
         puts "##{email.id} triage returned nothing — left in the inbox"
         next
       end
+      unless proposal[:travel]
+        puts "##{email.id} triage says this isn't a travel booking — left as-is; ignore it if that's right"
+        next
+      end
 
       email.apply_proposal!(proposal)
       unless email.proposed_start_resolved?
@@ -66,6 +70,10 @@ namespace :intake do
         puts "##{email.id} #{email.subject.to_s[0, 40]}: triage returned nothing, left as-is"
         next
       end
+      unless proposal[:travel]
+        puts "##{email.id} #{email.subject.to_s[0, 40]}: triage says not a travel booking, left as-is"
+        next
+      end
 
       email.apply_proposal!(proposal)
       after = email.proposed_trip_id ? "trip #{email.proposed_trip_id}" : email.proposed_new_trip&.dig("name").inspect
@@ -77,17 +85,31 @@ namespace :intake do
   end
 
 
-  desc "Show what the intake would capture and move, without writing anything"
+  desc "Re-score every stored capture with the current classifier and list what would change"
+  task rescore: :environment do
+    emails = InboundEmail.where.not(status: "released").order(:id)
+    changed = emails.reject do |email|
+      result = TravelEmailClassifier.new(from: email.from_address, subject: email.subject, body: email.body).result
+      puts "##{email.id} %-9s score %2s → %2s  %s" % [ email.status, email.score, result.score, email.subject.to_s[0, 50] ]
+      result.travel?
+    end
+
+    puts "\n#{emails.size} captures re-scored; #{changed.size} would no longer be flagged."
+    changed.each { |email| puts "  ##{email.id} #{email.subject}" }
+  end
+
+  desc "Show what the intake would capture, move, or leave, without writing anything or calling the LLM"
   task preview: :environment do
     mailbox = ImapMailbox.from_env
     abort "IMAP is not configured (IMAP_HOST/IMAP_USERNAME/IMAP_PASSWORD)." unless mailbox.configured?
 
-    capture, move, leave = [], [], []
+    capture, move, held, leave = [], [], [], []
     mailbox.open do |session|
       session.each_message do |message|
         row = "  %-38s %s" % [ (message.from.to_s[0, 38]), message.subject.to_s[0, 60] ]
-        if message.message_id.present? && InboundEmail.exists?(message_id: message.message_id)
-          move << row
+        known = InboundEmail.find_by(message_id: message.message_id.presence || "imap-#{message.uid}")
+        if known
+          (known.claimable? ? move : held) << "#{row}  [#{known.status}]"
         else
           result = TravelEmailClassifier.new(from: message.from, subject: message.subject, body: message.body).result
           (result.travel? ? capture : leave) << "#{row}  [score #{result.score}]"
@@ -95,8 +117,9 @@ namespace :intake do
       end
     end
 
-    puts "\nWOULD CAPTURE AND MOVE (#{capture.size}):"; puts capture
-    puts "\nALREADY KNOWN — WOULD MOVE ONLY (#{move.size}):"; puts move
+    puts "\nWOULD CAPTURE, THEN MOVE IF TRIAGE CONFIRMS A BOOKING (#{capture.size}):"; puts capture
+    puts "\nALREADY KNOWN — WOULD MOVE (#{move.size}):"; puts move
+    puts "\nALREADY KNOWN — STAYS IN INBOX (released, ignored, or unconfirmed) (#{held.size}):"; puts held
     puts "\nWOULD LEAVE IN INBOX (#{leave.size}):"; puts leave
     puts "\nNothing was written or moved."
   end

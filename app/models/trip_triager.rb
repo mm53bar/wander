@@ -3,13 +3,27 @@
 # trip. This is the LLM layer; the deterministic confirmation-number match runs
 # first (see TripMatcher / InboundEmail), so this only handles genuinely-new
 # bookings. Returns a proposal hash, or nil if unavailable/unparseable.
+#
+# The keyword classifier upstream lets some non-travel mail through (a retail
+# order confirmation reads a lot like a booking), so the model first says whether
+# this is a booking at all. `{ travel: false }` means it isn't, and intake hands
+# the message back to the shared inbox.
 class TripTriager
   SYSTEM = <<~PROMPT.freeze
-    You triage a travel booking email. You are given the user's EXISTING TRIPS,
-    each with its segments (type, date, location), and one booking EMAIL.
+    You triage an email that a keyword filter flagged as a possible travel
+    booking. You are given the user's EXISTING TRIPS, each with its segments
+    (type, date, location), and one EMAIL.
 
-    Return ONLY JSON:
-    {"segments":[{"kind","summary","starts_at_local","starts_time_zone",
+    First decide whether the EMAIL is a travel booking: a reservation or ticket
+    for a flight, lodging, ferry, train, bus, campsite, car rental, tour, or
+    similar. An order or receipt for goods, a shipping or delivery notice, a
+    newsletter, or a promotion is NOT, even when it says "confirmed" or gives a
+    confirmation number. If it is not a travel booking, return ONLY
+    {"travel_booking":false}.
+
+    Otherwise return ONLY JSON:
+    {"travel_booking":true,
+     "segments":[{"kind","summary","starts_at_local","starts_time_zone",
       "ends_at_local","ends_time_zone","starts_at_label","ends_at_label",
       "location","confirmation","links":[{"label","url"}]}],
      "assignment":{"trip_id":<existing id or null>,"extends_trip":true|false,
@@ -62,9 +76,11 @@ class TripTriager
   def triage
     data = @client.complete_json(system: SYSTEM, user: user_prompt)
     return nil unless data.is_a?(Hash)
+    return { travel: false } if data["travel_booking"] == false
 
     a = data["assignment"] || {}
     {
+      travel: true,
       segments: normalize_segments(data["segments"]),
       trip_id: valid_trip_id(a["trip_id"]),
       new_trip: normalize_new_trip(a["new_trip"]),
