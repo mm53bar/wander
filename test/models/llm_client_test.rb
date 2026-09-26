@@ -35,7 +35,7 @@ class LlmClientTest < ActiveSupport::TestCase
   end
 
   test "complete_json treats rate limiting and server errors as unavailable" do
-    %w[429 503].each do |code|
+    %w[408 429 503].each do |code|
       assert_raises(LlmClient::Unavailable) { Canned.new(code).complete_json(system: "s", user: "u") }
     end
   end

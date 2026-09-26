@@ -11,8 +11,8 @@ class InboundEmail < ApplicationRecord
   STATUSES = %w[received filed ignored duplicate released].freeze
 
   # Triage runs again on each intake pass until it works or the attempts run out.
-  # Only then is a dead end reported to a human — a single failure is far more
-  # often the LLM being briefly unreachable than a booking that can't be read.
+  # Only then is a dead end reported to a human. An LLM outage isn't an attempt
+  # (see EmailIntakeJob#attempt_triage); only an unusable answer is.
   MAX_TRIAGE_ATTEMPTS = 3
 
   # Captured, but triage has never produced a proposal — the retry set.

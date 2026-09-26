@@ -175,15 +175,15 @@ class EmailIntakeJobTest < ActiveJob::TestCase
     assert_equal 1, llm.calls
   end
 
-  test "a brief LLM outage doesn't notify, and leaves the booking to be retried" do
+  test "an LLM outage uses no attempts, however long it lasts" do
     inbound = inbound_emails(:pending_flight)
-    inbound.update!(proposed_segments: nil, triage_attempts: 0)
+    inbound.update!(proposed_segments: nil, triage_attempts: InboundEmail::MAX_TRIAGE_ATTEMPTS - 1)
     AllowedSender.create!(address: AllowedSender.address_in(inbound.from_address))
 
-    EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UnavailableLlm.new)
+    5.times { EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([]), llm: UnavailableLlm.new) }
 
-    assert_equal 1, inbound.reload.triage_attempts
-    assert_nil inbound.notified_at, "should not report a dead end on the first failure"
+    assert_equal InboundEmail::MAX_TRIAGE_ATTEMPTS - 1, inbound.reload.triage_attempts
+    assert_nil inbound.notified_at, "an outage is not a dead end"
     assert_includes InboundEmail.awaiting_triage, inbound, "should still be queued for retry"
   end
 

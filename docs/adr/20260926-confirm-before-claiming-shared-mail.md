@@ -34,7 +34,9 @@ Two changes, both so that wander only takes mail it is sure is its own:
    An explicit "not a booking" marks the row `released`. The body is dropped and
    the Message-ID kept, so later passes skip the message without asking the LLM
    again. The message itself stays in INBOX. While the LLM is unreachable, the
-   message also stays in INBOX and is triaged again on the next pass.
+   message also stays in INBOX and is triaged again on the next pass. An outage
+   (a timeout, a 408/429, a 5xx) doesn't count toward the triage attempts, so
+   however long it lasts it can't exhaust them; only an unusable answer does.
 
 With no LLM configured at all, the classifier decides alone, as before.
 

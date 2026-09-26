@@ -45,7 +45,7 @@ class LlmClient
     }.to_json
 
     res = post(uri, req, timeout)
-    raise Unavailable, "HTTP #{res.code}" if res.code.to_i >= 500 || res.code.to_i == 429
+    raise Unavailable, "HTTP #{res.code}" if res.code.to_i >= 500 || [ 408, 429 ].include?(res.code.to_i)
     return nil unless res.code.to_i.between?(200, 299)
 
     self.class.parse_content(JSON.parse(res.body).dig("choices", 0, "message", "content"))

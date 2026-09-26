@@ -102,14 +102,13 @@ class EmailIntakeJob < ApplicationJob
     end
   end
 
-  # Returns the proposal, or nil having counted the failure. A human only hears
-  # about it once the retries are spent, so a brief LLM outage never produces a
+  # Returns the proposal, or nil. Only an unusable answer counts toward giving
+  # up; an outage of any length leaves the email queued, so it never produces a
   # "couldn't read this booking" notice for a booking that reads fine.
   def attempt_triage(inbound, triager)
     triager.triage.tap { |proposal| record_failed_triage(inbound) if proposal.nil? }
   rescue LlmClient::Unavailable => e
     Rails.logger.warn("EmailIntakeJob: triage unavailable for ##{inbound.id}: #{e.message}")
-    record_failed_triage(inbound)
     nil
   end
 
