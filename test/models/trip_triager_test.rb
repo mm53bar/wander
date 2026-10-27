@@ -33,6 +33,25 @@ class TripTriagerTest < ActiveSupport::TestCase
     assert_equal %w[A B], proposal[:segments].map { |s| s["confirmation"] }
   end
 
+  test "keeps the travellers the model names for a new trip" do
+    fake = Fake.new(
+      "segments" => [ { "kind" => "flight" } ],
+      "assignment" => { "trip_id" => nil, "confidence" => "medium",
+                        "new_trip" => { "name" => "Home for the break", "start_date" => "2027-03-01", "end_date" => "2027-03-05", "travellers" => "Avery Example" } }
+    )
+    proposal = TripTriager.new(inbound_emails(:pending_flight), client: fake).triage
+    assert_equal "Avery Example", proposal[:new_trip]["travellers"]
+  end
+
+  test "joins travellers the model gives as a list" do
+    fake = Fake.new(
+      "segments" => [ { "kind" => "flight" } ],
+      "assignment" => { "confidence" => "medium", "new_trip" => { "name" => "X", "travellers" => [ "Avery Example", "", "Blake Example" ] } }
+    )
+    proposal = TripTriager.new(inbound_emails(:pending_flight), client: fake).triage
+    assert_equal "Avery Example, Blake Example", proposal[:new_trip]["travellers"]
+  end
+
   test "reports an email that isn't a travel booking" do
     fake = Fake.new("travel_booking" => false)
     assert_equal({ travel: false }, TripTriager.new(inbound_emails(:pending_flight), client: fake).triage)
@@ -92,6 +111,13 @@ class TripTriagerTest < ActiveSupport::TestCase
     prompt = prompt_for(email_dated(24, 27))
     assert_match(/trip id=#{trips(:lisbon).id}/, prompt)
     assert_match(/treat it as an EXTENDS case with suggested_end_date=#{last}/, prompt)
+  end
+
+  test "prompt lists each trip's travellers, or ? when unknown" do
+    trips(:kyoto).update!(travellers: nil)
+    prompt = prompt_for(inbound_emails(:pending_flight))
+    assert_match(/id=#{trips(:lisbon).id} .* travellers=Two adults$/, prompt)
+    assert_match(/id=#{trips(:kyoto).id} .* travellers=\?$/, prompt)
   end
 
   test "no DATE MATCH when the email has no dates in any trip's span" do

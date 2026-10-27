@@ -117,13 +117,12 @@ class InboundEmail < ApplicationRecord
     Trip.find_by(id: proposed_trip_id)
   end
 
-  # High-confidence assignment to an existing trip — safe to file without a human
-  # click. Extending that trip is allowed, but only when there's a date to extend
-  # to at whichever edge it passes: without one the trip would end up not
-  # containing the segment we just added. New-trip proposals stay for review.
+  # High-confidence assignment that fits inside an existing trip — safe to file
+  # without a human click. Extends and new-trip proposals stay for review: a
+  # booking that lands just past a trip's edge is as often a separate journey as
+  # a continuation, and the dates alone can't tell them apart.
   def auto_acceptable?
-    return false unless confidence == "high" && proposed_trip_id.present? && proposed_new_trip.blank?
-    !extends_trip || suggested_end_date.present? || suggested_start_date.present?
+    confidence == "high" && proposed_trip_id.present? && proposed_new_trip.blank? && !extends_trip
   end
 
   # Store an LLM triage proposal on this email.
@@ -189,7 +188,7 @@ class InboundEmail < ApplicationRecord
     return nil unless nt.is_a?(Hash) && nt["name"].present?
     seg_date = segments_proposed.first&.dig("starts_at")
     Trip.create!(
-      name: nt["name"],
+      name: nt["name"], travellers: nt["travellers"],
       start_date: nt["start_date"].presence || seg_date, end_date: nt["end_date"].presence || seg_date
     )
   end

@@ -46,6 +46,16 @@ class InboundEmailsControllerTest < ActionDispatch::IntegrationTest
     assert_equal "filed", inbound.reload.status
   end
 
+  test "index offers to extend a trip backwards when only a start date is suggested" do
+    start = trips(:lisbon).start_date - 2
+    inbound_emails(:pending_hotel).apply_proposal!(
+      segments: [ { "kind" => "hotel", "summary" => "Stay" } ], trip_id: trips(:lisbon).id, new_trip: nil,
+      extends_trip: true, suggested_start_date: start.to_s, suggested_end_date: nil, confidence: "high", reason: nil
+    )
+    get inbound_emails_path
+    assert_select "label", text: /Extend the trip back to #{start.strftime("%b %-d, %Y")}/
+  end
+
   test "undo returns an auto-filed email to the inbox" do
     inbound = inbound_emails(:pending_hotel)
     inbound.apply_proposal!(segments: [ { "kind" => "hotel", "summary" => "Stay" } ], trip_id: trips(:lisbon).id,

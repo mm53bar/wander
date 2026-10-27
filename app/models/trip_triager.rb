@@ -11,8 +11,8 @@
 class TripTriager
   SYSTEM = <<~PROMPT.freeze
     You triage an email that a keyword filter flagged as a possible travel
-    booking. You are given the user's EXISTING TRIPS, each with its segments
-    (type, date, location), and one EMAIL.
+    booking. You are given the user's EXISTING TRIPS, each with its travellers
+    and segments (type, date, location), and one EMAIL.
 
     First decide whether the EMAIL is a travel booking: a reservation or ticket
     for a flight, lodging, ferry, train, bus, campsite, car rental, tour, or
@@ -28,7 +28,7 @@ class TripTriager
       "location","confirmation","links":[{"label","url"}]}],
      "assignment":{"trip_id":<existing id or null>,"extends_trip":true|false,
       "suggested_start_date":<ISO date or null>,"suggested_end_date":<ISO date or null>,
-      "new_trip":{"name","start_date","end_date"}|null,
+      "new_trip":{"name","start_date","end_date","travellers"}|null,
       "confidence":"high|medium|low","reason":"one sentence"}}
 
     Give ONE entry in "segments" per distinct leg or booking the email describes.
@@ -44,11 +44,19 @@ class TripTriager
     trip merely because the booking lies outside its label. Fall back to the label
     only for a trip that has no segments yet.
 
+    A household's trips overlap, so WHO travels matters as much as when and
+    where. Read the booking's passenger or guest names (ignore who sent or
+    forwarded the email). If the trip lists named travellers and the booking's
+    travellers include none of them, the booking is a different person's journey:
+    propose a new trip, however well its dates and places line up. A trip with no
+    travellers, or only a count like "Two adults", gives no signal either way.
+    Give the booking's traveller names as new_trip.travellers.
+
     Choosing a trip:
     - A DATE MATCH line, when present, is a deterministic computation over the
       email's dates. Trust it over your own reading of them: attach to the trip it
       names unless the booking is clearly inconsistent with that trip's SEGMENT
-      locations — not merely with its label.
+      locations (not merely with its label) or its travellers.
     - PREFER attaching to an existing trip. A booking belongs to a trip when its
       dates fall within, or are immediately adjacent to (starting on or near the
       trip's last day), that trip's span AND it fits the route its segments
@@ -100,7 +108,8 @@ class TripTriager
 
   def normalize_new_trip(nt)
     return nil unless nt.is_a?(Hash) && nt["name"].present?
-    { "name" => nt["name"], "start_date" => nt["start_date"], "end_date" => nt["end_date"] }
+    { "name" => nt["name"], "start_date" => nt["start_date"], "end_date" => nt["end_date"],
+      "travellers" => Array(nt["travellers"]).compact_blank.join(", ").presence }
   end
 
   # The wall-clock times become instants here, at the boundary where LLM output
@@ -173,7 +182,8 @@ class TripTriager
   # label= rather than dest= on purpose: it is a human-written summary that may be
   # out of date, and the prompt tells the model to treat it as such.
   def trip_block(t)
-    head = %(- id=#{t.id} "#{t.name}" [#{t.start_date}..#{t.end_date}] label=#{t.destination.presence || "?"})
+    head = %(- id=#{t.id} "#{t.name}" [#{t.start_date}..#{t.end_date}] label=#{t.destination.presence || "?"} ) +
+           %(travellers=#{t.travellers.presence || "?"})
     segs = t.segments.map do |s|
       "    · #{s.kind} #{s.starts_at&.to_date || s.local_date} @ #{(s.location.presence || s.summary).to_s[0, 50]}"
     end

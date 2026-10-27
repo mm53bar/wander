@@ -48,10 +48,11 @@
           <label>Trip</label>
           <%= select_tag :trip_id, trip_options_for(email), include_blank: false %>
         </div>
-        <% if email.extends_trip && email.suggested_end_date %>
+        <% if email.extends_trip && (email.suggested_start_date || email.suggested_end_date) %>
           <label class="subtle">
             <%= check_box_tag :extend_dates, "1", true %>
-            Extend the trip to <%= email.suggested_end_date.strftime("%b %-d, %Y") %>
+            Extend the trip <%= [ email.suggested_start_date && "back to #{email.suggested_start_date.strftime("%b %-d, %Y")}",
+                                  email.suggested_end_date && "to #{email.suggested_end_date.strftime("%b %-d, %Y")}" ].compact.join(" and ") %>
           </label>
         <% end %>
         <div class="form-actions">

@@ -49,6 +49,13 @@ class InboundEmailTest < ActiveSupport::TestCase
     end
   end
 
+  test "accept! carries the booking's travellers onto a new trip" do
+    inbound = inbound_emails(:pending_hotel)
+    propose(inbound, trip_id: nil, confidence: "medium",
+                     new_trip: { "name" => "Spring Trip", "start_date" => "2027-03-01", "end_date" => "2027-03-05", "travellers" => "Avery Example" })
+    assert_equal "Avery Example", inbound.accept!.first.trip.travellers
+  end
+
   test "accept! extends the trip end date when asked" do
     new_end = trips(:lisbon).end_date + 3
     inbound = inbound_emails(:pending_flight)
@@ -67,11 +74,11 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_not inbound.auto_acceptable?
   end
 
-  test "auto_acceptable? allows an extend, but only with an end date to extend to" do
+  test "auto_acceptable? never for an extend, at either edge" do
     inbound = inbound_emails(:pending_flight)
     propose(inbound, extends_trip: true, suggested_end_date: (trips(:lisbon).end_date + 2).to_s)
-    assert inbound.auto_acceptable?
-    propose(inbound, extends_trip: true, suggested_end_date: nil)
+    assert_not inbound.auto_acceptable?
+    propose(inbound, extends_trip: true, suggested_start_date: (trips(:lisbon).start_date - 1).to_s)
     assert_not inbound.auto_acceptable?
   end
 
@@ -112,12 +119,6 @@ class InboundEmailTest < ActiveSupport::TestCase
     propose(inbound, extends_trip: true, suggested_start_date: (original_start - 2).to_s)
     inbound.accept!(extend_dates: true)
     assert_equal original_start - 2, trips(:lisbon).reload.start_date
-  end
-
-  test "auto_acceptable? accepts an extend backed by a start date alone" do
-    inbound = inbound_emails(:pending_flight)
-    propose(inbound, extends_trip: true, suggested_start_date: (trips(:lisbon).start_date - 1).to_s)
-    assert inbound.auto_acceptable?
   end
 
   test "undo_auto_file! puts back a start date the extend moved" do
