@@ -118,11 +118,13 @@ class InboundEmail < ApplicationRecord
   end
 
   # High-confidence assignment that fits inside an existing trip — safe to file
-  # without a human click. Extends and new-trip proposals stay for review: a
-  # booking that lands just past a trip's edge is as often a separate journey as
-  # a continuation, and the dates alone can't tell them apart.
+  # without a human click. Anything that would widen the trip, and new-trip
+  # proposals, stay for review: a booking that lands just past a trip's edge is
+  # as often a separate journey as a continuation, and the dates alone can't tell
+  # them apart.
   def auto_acceptable?
-    confidence == "high" && proposed_trip_id.present? && proposed_new_trip.blank? && !extends_trip
+    trip = proposed_trip
+    confidence == "high" && trip.present? && proposed_new_trip.blank? && fits_inside?(trip)
   end
 
   # Store an LLM triage proposal on this email.
@@ -166,6 +168,19 @@ class InboundEmail < ApplicationRecord
   end
 
   private
+
+  # Judged on the proposal's dates rather than extends_trip, which the model also
+  # sets for a booking sitting exactly on a trip's first or last day.
+  def fits_inside?(trip)
+    dates = proposal_dates
+    return !extends_trip if dates.empty?
+    dates.all? { |d| (trip.start_date..trip.end_date).cover?(d) }
+  end
+
+  def proposal_dates
+    times = segments_proposed.flat_map { |s| s.values_at("starts_at", "ends_at") }.compact_blank
+    times.map { |t| Time.zone.parse(t).to_date } + [ suggested_start_date, suggested_end_date ].compact
+  end
 
   # Stretch the trip over a booking that runs past either edge, returning what
   # the dates were so undo can put them back.

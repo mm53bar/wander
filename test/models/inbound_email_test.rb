@@ -24,7 +24,7 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_equal InboundEmail.where(status: "received").order(received_at: :desc).to_a, InboundEmail.received.to_a
   end
   def propose(inbound, **over)
-    base = { segments: [ { "kind" => "flight", "summary" => "Test flight", "starts_at" => "2026-09-06T10:00:00", "confirmation" => "ZZ9" } ],
+    base = { segments: [ { "kind" => "flight", "summary" => "Test flight", "starts_at" => "#{trips(:lisbon).start_date + 1}T10:00:00Z", "confirmation" => "ZZ9" } ],
              trip_id: trips(:lisbon).id, new_trip: nil, extends_trip: false,
              suggested_start_date: nil, suggested_end_date: nil, confidence: "high", reason: "x" }
     inbound.apply_proposal!(base.merge(over))
@@ -71,6 +71,27 @@ class InboundEmailTest < ActiveSupport::TestCase
     propose(inbound, confidence: "medium")
     assert_not inbound.auto_acceptable?
     propose(inbound, trip_id: nil, new_trip: { "name" => "X", "start_date" => "2027-01-01", "end_date" => "2027-01-02" })
+    assert_not inbound.auto_acceptable?
+  end
+
+  test "auto_acceptable? when flagged as an extend but every date is on the trip's edges" do
+    trip = trips(:lisbon)
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, suggested_start_date: trip.start_date.to_s, suggested_end_date: trip.end_date.to_s,
+                     segments: [ { "kind" => "flight", "starts_at" => "#{trip.start_date}T15:00:00Z" },
+                                 { "kind" => "flight", "starts_at" => "#{trip.end_date}T18:00:00Z" } ])
+    assert inbound.auto_acceptable?
+  end
+
+  test "auto_acceptable? not when a segment falls outside the trip, flagged or not" do
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, segments: [ { "kind" => "flight", "starts_at" => "#{trips(:lisbon).end_date + 1}T18:00:00Z" } ])
+    assert_not inbound.auto_acceptable?
+  end
+
+  test "auto_acceptable? not for an extend with no dates to check" do
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, extends_trip: true, segments: [ { "kind" => "note", "summary" => "Undated" } ])
     assert_not inbound.auto_acceptable?
   end
 
