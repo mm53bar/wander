@@ -32,9 +32,15 @@ as well as images, which on these emails would fetch HTML.
      booking opens either leg;
    - several codes that name no confirmation are left off, rather than guessed.
    A QR code already on a segment is never replaced.
-3. **The segment card shows the code at its own proportions**, since barcodes
-   aren't square, and tapping it opens it full screen on white for scanning.
-   It is CSS only (`:target`), so it works offline in the installed app.
+3. **The segment card keeps the code behind a "Scan code" toggle**, opening
+   it by itself on the days it is needed: the day the booking starts and the
+   day it ends. The toggle is Rails Blocks' Collapsible controller, unmodified;
+   a small `scan-day` controller decides the day by the device's clock, so a
+   page the installed app cached earlier still opens on the right day. The code
+   keeps its own proportions, since barcodes aren't square, and tapping it opens
+   it full screen on white. That view is CSS only (`:target`), so its links opt
+   out of Turbo, which otherwise changes the URL without the browser's own jump
+   and leaves `:target` unset.
    `QrCode#data_uri` types the image from its bytes, since providers serve JPEG
    as often as PNG, and label it wrongly.
 

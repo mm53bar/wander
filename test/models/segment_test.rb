@@ -7,6 +7,15 @@ class SegmentTest < ActiveSupport::TestCase
     assert_equal "✈️", segment.emoji
   end
 
+  test "scan_dates are the days a booking starts and ends" do
+    stay = Segment.new(kind: "parking", summary: "Parkade", starts_at: Time.zone.parse("2027-01-03 04:30"),
+                       ends_at: Time.zone.parse("2027-01-06 10:00"))
+    assert_equal %w[2027-01-03 2027-01-06], stay.scan_dates
+    assert_equal %w[2027-01-03], Segment.new(starts_at: Time.zone.parse("2027-01-03 07:00"),
+                                             ends_at: Time.zone.parse("2027-01-03 08:55")).scan_dates
+    assert_empty Segment.new.scan_dates
+  end
+
   test "an explicit emoji is preserved" do
     segment = trips(:lisbon).segments.new(kind: "flight", emoji: "🛩️", summary: "Test")
     segment.valid?

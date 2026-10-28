@@ -13,6 +13,17 @@ class TripsControllerTest < ActionDispatch::IntegrationTest
     assert_select "h1", text: /Lisbon City Break/
   end
 
+  test "show hides a segment's scan code behind a toggle that knows its scan days" do
+    seg = segments(:lisbon_flight)
+    get trip_path(trips(:lisbon))
+    assert_select ".seg-qr[data-controller='scan-day collapsible'][data-scan-day-dates-value=?]", seg.scan_dates.to_json do
+      assert_select "button[data-action='click->collapsible#toggle']", text: /Scan code/
+      assert_select "[data-collapsible-target='content'][style*='max-height: 0'] img[src^='data:image/png']"
+      assert_select "a[href='#qr-#{seg.id}'][data-turbo='false']"
+      assert_select "a#qr-#{seg.id}.qr-full[data-turbo='false']"
+    end
+  end
+
   test "html create redirects to the trip" do
     assert_difference -> { Trip.count }, 1 do
       post trips_path, params: { trip: { name: "Rome", start_date: "2026-10-01", end_date: "2026-10-05" } }

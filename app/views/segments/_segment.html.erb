@@ -30,14 +30,24 @@
     <% end %>
 
     <% if segment.qr_code %>
-      <div class="seg-qr">
-        <a href="#qr-<%= segment.id %>" title="Show full screen to scan">
-          <%= image_tag segment.qr_code.data_uri, alt: "Scan code" %>
-        </a>
-        <a id="qr-<%= segment.id %>" class="qr-full" href="#_" title="Close">
-          <%= image_tag segment.qr_code.data_uri, alt: "Scan code for #{segment.summary}" %>
-          <span><%= segment.summary %> · tap to close</span>
-        </a>
+      <div class="seg-qr" data-controller="scan-day collapsible" data-collapsible-open-value="false"
+           data-scan-day-dates-value="<%= segment.scan_dates.to_json %>">
+        <button type="button" class="seg-qr-toggle" data-action="click->collapsible#toggle">
+          Scan code
+          <span class="seg-qr-icons" aria-hidden="true">
+            <span data-collapsible-target="collapsedIcon">▸</span>
+            <span data-collapsible-target="expandedIcon" style="opacity: 0;">▾</span>
+          </span>
+        </button>
+        <div class="seg-qr-content" data-collapsible-target="content" style="max-height: 0; opacity: 0;">
+          <a href="#qr-<%= segment.id %>" title="Show full screen to scan" data-turbo="false">
+            <%= image_tag segment.qr_code.data_uri, alt: "Scan code" %>
+          </a>
+          <a id="qr-<%= segment.id %>" class="qr-full" href="#_" title="Close" data-turbo="false">
+            <%= image_tag segment.qr_code.data_uri, alt: "Scan code for #{segment.summary}" %>
+            <span><%= segment.summary %> · tap to close</span>
+          </a>
+        </div>
       </div>
     <% end %>
 

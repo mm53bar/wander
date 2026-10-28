@@ -41,6 +41,12 @@ class Segment < ApplicationRecord
     end
   end
 
+  # The days its scan code is needed: the day it starts (entering a parkade,
+  # boarding) and the day it ends (leaving one).
+  def scan_dates
+    [ local_date, ends_at&.to_date ].compact.uniq.map(&:iso8601)
+  end
+
   # Reassign this segment to another trip.
   def move_to(trip)
     update!(trip: trip)
