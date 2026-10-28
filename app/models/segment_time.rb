@@ -5,20 +5,17 @@
 # successive runs. See docs/adr/20260829-deterministic-segment-times.md.
 #
 # Resolution order, first hit wins:
-#   1. a zone abbreviation in the booking's own wording ("Sep 5, 3:00 PM PDT"),
-#      unless it is just the name of the zone found in step 2 or 3
-#   2. an IANA zone from the model, only if TZInfo actually knows it
-#   3. a static table keyed off the segment's location
+#   1. an IANA zone from the model, only if TZInfo actually knows it
+#   2. a static table keyed off the segment's location
+#   3. a zone abbreviation in the label ("Sep 5, 3:00 PM PDT")
 #   4. nothing — return nil and leave the segment undated rather than guess
 #
-# A booking made before a rule change keeps printing the zone's old name: "PST"
-# on a Victoria hotel after BC stopped changing clocks. Read as a fixed offset
-# that is an hour out, so an abbreviation the event's own zone has used recently
-# defers to that zone's current rules. One the zone has never used still wins,
-# since then it's the model's zone that is likely wrong.
+# An abbreviation is a fixed offset, so it is wrong whenever it is stale for the
+# date, and labels carry them loosely ("(PST)" on an October stay). It only
+# decides when no zone is known. See
+# docs/adr/20261028-zone-rules-from-tzinfo-data-and-iana-zones-first.md.
 class SegmentTime
-  # An abbreviation IS an offset, so no DST reasoning is needed for step 1.
-  # Ambiguous ones are deliberately absent — CST is -06:00 in Winnipeg and
+  # Ambiguous abbreviations are deliberately absent — CST is -06:00 in Winnipeg and
   # +08:00 in Shanghai, IST is three different zones, BST two. They fall through
   # to a step that can tell the difference instead of guessing silently.
   OFFSETS = {
@@ -78,12 +75,10 @@ class SegmentTime
     wall = wall_clock(local)
     return nil unless wall
 
-    abbreviation = abbreviation_in(label)
-    tz = timezone(zone) || timezone_for(location)
-    if abbreviation && !(tz && recently_named?(tz, abbreviation, wall))
-      Time.parse("#{wall}#{OFFSETS[abbreviation]}")
-    elsif tz
+    if (tz = timezone(zone) || timezone_for(location))
       tz.parse(wall)
+    elsif (offset = offset_from_label(label))
+      Time.parse("#{wall}#{offset}")
     end
   rescue ArgumentError, TZInfo::InvalidTimezoneIdentifier
     nil
@@ -96,17 +91,9 @@ class SegmentTime
     m && "#{m[1]}T#{m[2]}"
   end
 
-  def self.abbreviation_in(label)
-    label.to_s.downcase.scan(/\b[a-z]{2,4}\b/).find { |t| OFFSETS.key?(t) }
-  end
-
-  # Whether the zone went by this abbreviation in winter or summer of the
-  # event's year or the year before.
-  def self.recently_named?(tz, abbreviation, wall)
-    year = wall[0, 4].to_i
-    [ year - 1, year ].product([ 1, 7 ]).any? do |y, month|
-      tz.tzinfo.period_for_local(Time.utc(y, month, 1)).abbreviation.casecmp?(abbreviation)
-    end
+  def self.offset_from_label(label)
+    token = label.to_s.downcase.scan(/\b[a-z]{2,4}\b/).find { |t| OFFSETS.key?(t) }
+    OFFSETS[token]
   end
 
   def self.timezone(zone)
