@@ -290,6 +290,10 @@ form.stack { display: flex; flex-direction: column; gap: 0.85rem; }
   .raw-emails, .footer-ts { display: none; }
   a { color: inherit; text-decoration: none; }
   .seg-links a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 0.7em; color: #666; }
+  /* !important: the collapsible controller hides the code with inline styles. */
+  .seg-qr-toggle, .qr-full { display: none !important; }
+  .seg-qr-content { max-height: none !important; opacity: 1 !important; overflow: visible; }
+  .seg-qr-content img { max-width: 2.2in; max-height: 1.4in; border: 0; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
 
 /* Rendered Markdown from trip/segment notes. Tuned to sit inside a .card without
