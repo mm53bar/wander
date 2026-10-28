@@ -25,6 +25,22 @@ class SegmentTimeTest < ActiveSupport::TestCase
     assert_equal "2026-09-08T13:00:00-07:00", at.iso8601
   end
 
+  test "a zone's old abbreviation defers to its current rules" do
+    assert_equal "2027-01-03T07:00:00-06:00",
+                 resolve(local: "2027-01-03T07:00", label: "Jan 3, 7:00 AM MST", zone: "America/Edmonton").iso8601
+    assert_equal "2027-01-03T16:00:00-07:00",
+                 resolve(local: "2027-01-03T16:00", label: "Jan 3, 4:00 PM PST", location: "YYJ Victoria").iso8601
+  end
+
+  test "an abbreviation the zone has never used still wins over it" do
+    at = resolve(local: "2027-01-03T07:00", label: "Jan 3, 7:00 AM EST", zone: "America/Vancouver")
+    assert_equal "2027-01-03T07:00:00-05:00", at.iso8601
+  end
+
+  test "an old abbreviation with no zone to defer to is still read as its offset" do
+    assert_equal "-08:00", resolve(local: "2027-01-03T16:00", label: "Jan 3, 4:00 PM PST").iso8601.last(6)
+  end
+
   test "undated rather than guessed when nothing resolves" do
     assert_nil resolve(local: "2026-09-08T13:00", label: "1:00 PM", location: "Somewhere unlisted")
     assert_nil resolve(local: "2026-09-08T13:00", zone: "Mars/Olympus")
