@@ -31,7 +31,13 @@
 
     <% if segment.qr_code %>
       <div class="seg-qr">
-        <%= image_tag segment.qr_code.data_uri, alt: "QR code", width: 140, height: 140 %>
+        <a href="#qr-<%= segment.id %>" title="Show full screen to scan">
+          <%= image_tag segment.qr_code.data_uri, alt: "Scan code" %>
+        </a>
+        <a id="qr-<%= segment.id %>" class="qr-full" href="#_" title="Close">
+          <%= image_tag segment.qr_code.data_uri, alt: "Scan code for #{segment.summary}" %>
+          <span><%= segment.summary %> · tap to close</span>
+        </a>
       </div>
     <% end %>
 

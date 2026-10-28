@@ -35,6 +35,15 @@ class EmailIntakeJobTest < ActiveJob::TestCase
     assert_not InboundEmail.exists?(message_id: "n1@x")
   end
 
+  test "keeps the booking codes from a captured message" do
+    mail = Mail.new
+    mail.html_part = Mail::Part.new(content_type: "text/html; charset=UTF-8", body: '<img src="cid:pass">')
+    mail.attachments.inline["barcode.png"] = { mime_type: "image/png", content: "\x89PNG\r\n\x1a\n".b + ("x" * 100).b }
+    message = msg("t1@x", from: "no-reply@bcferries.com", subject: "Your booking is confirmed", body: "Your ferry itinerary.")
+    EmailIntakeJob.perform_now(mailbox: FakeMailbox.new([ message.with(mail: mail) ]))
+    assert_equal [ "image/png" ], InboundEmail.find_by(message_id: "t1@x").booking_codes.map { |c| c["content_type"] }
+  end
+
   test "moves what it claims out of the shared inbox, and leaves the rest" do
     mailbox = FakeMailbox.new([
       msg("t1@x", from: "no-reply@bcferries.com", subject: "Your booking is confirmed", body: "Your ferry itinerary."),

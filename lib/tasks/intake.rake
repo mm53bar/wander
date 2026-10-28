@@ -55,6 +55,27 @@ namespace :intake do
   end
 
 
+  desc "Read scannable codes from claimed emails' originals and attach them: intake:attach_codes[15,19]"
+  task :attach_codes, [ :ids ] => :environment do |_task, args|
+    ids = [ args[:ids], *args.extras ].join(" ").split(/[,\s]+/).filter_map { |id| Integer(id, exception: false) }
+    abort 'Usage: bin/rails "intake:attach_codes[15,19]"' if ids.empty?
+
+    mailbox = ImapMailbox.from_env
+    abort "IMAP is not configured (IMAP_HOST/IMAP_USERNAME/IMAP_PASSWORD)." unless mailbox.configured?
+
+    mailbox.open_archive do |archive|
+      InboundEmail.where(id: ids).order(:id).each do |email|
+        message = archive.find(email.message_id)
+        next warn("##{email.id} not found in the archive folder") unless message&.mail
+
+        attached = email.recapture_codes!(message.mail)
+        sources = email.booking_codes.map { |c| c["source"].to_s[0, 70] }
+        puts "##{email.id} #{email.subject.to_s[0, 44]}: #{sources.size} code(s) #{sources.inspect}"
+        puts "    → attached to segment(s) #{attached.map(&:id).join(', ').presence || 'none'}"
+      end
+    end
+  end
+
   desc "Re-run triage on everything waiting in the inbox (after the triager changes)"
   task retriage: :environment do
     emails = InboundEmail.received.to_a

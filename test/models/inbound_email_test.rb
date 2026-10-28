@@ -40,6 +40,32 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_equal "flight", Segment.find(inbound.created_segment_ids.first).kind
   end
 
+  test "accept! puts a lone booking code on every segment it creates" do
+    inbound = inbound_emails(:pending_flight)
+    inbound.update!(booking_codes: [ { "source" => "cid:barcode", "content_type" => "image/png", "data" => "iVBORw0KGgoAAAA" } ])
+    day = trips(:lisbon).start_date + 1
+    propose(inbound, segments: [ { "kind" => "ferry", "summary" => "Out", "starts_at" => "#{day}T10:00:00Z" },
+                                 { "kind" => "ferry", "summary" => "Back", "starts_at" => "#{day}T18:00:00Z" } ])
+    created = inbound.accept!
+    assert_equal [ "cid:barcode" ] * 2, created.map { |s| s.reload.qr_code&.source_url }
+  end
+
+  test "attaching codes never replaces a QR code already on a segment" do
+    seg = segments(:lisbon_flight)
+    before = seg.qr_code.image_data
+    inbound = inbound_emails(:pending_flight)
+    inbound.update!(booking_codes: [ { "source" => "cid:barcode", "data" => "iVBORw0KGgoAAAA" } ])
+    assert_empty inbound.attach_codes_to([ seg ])
+    assert_equal before, seg.reload.qr_code.image_data
+  end
+
+  test "release! drops the codes along with the body" do
+    inbound = inbound_emails(:pending_hotel)
+    inbound.update!(booking_codes: [ { "source" => "cid:barcode", "data" => "x" } ])
+    inbound.release!
+    assert_empty inbound.reload.booking_codes
+  end
+
   test "accept! creates a new trip from the proposal" do
     inbound = inbound_emails(:pending_hotel)
     propose(inbound, trip_id: nil, new_trip: { "name" => "Spring Trip", "start_date" => "2027-03-01", "end_date" => "2027-03-05" }, confidence: "medium")

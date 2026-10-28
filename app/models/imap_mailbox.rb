@@ -16,8 +16,11 @@ require "mail"
 # INTAKE_MAILBOX (default INBOX), INTAKE_ARCHIVE_MAILBOX (default Wander).
 class ImapMailbox
   # message_id/references are the real RFC822 header values (bare, no angle
-  # brackets) — the notice mailer threads its reply from them.
-  Message = Data.define(:uid, :message_id, :references, :from, :subject, :body, :received_at)
+  # brackets) — the notice mailer threads its reply from them. mail is the parsed
+  # message, kept for what the plain-text body drops (BookingCode).
+  Message = Data.define(:uid, :message_id, :references, :from, :subject, :body, :received_at, :mail) do
+    def initialize(mail: nil, **rest) = super
+  end
 
   def self.from_env
     new(
@@ -47,6 +50,22 @@ class ImapMailbox
     yield self
   ensure
     close
+  end
+
+  # Read-only access to wander's own folder (EXAMINE, so no flags change), for
+  # going back to messages already claimed.
+  def open_archive
+    @imap = Net::IMAP.new(@host, port: @port, ssl: true)
+    @imap.login(@username, @password)
+    @imap.examine(@archive)
+    yield self
+  ensure
+    close
+  end
+
+  def find(message_id)
+    uid = @imap.uid_search([ "HEADER", "Message-ID", message_id.to_s.delete("<>") ]).first
+    uid && fetch(uid)
   end
 
   def each_message
@@ -102,7 +121,8 @@ class ImapMailbox
       from: mail[:from].to_s.presence || mail.from&.first.to_s,
       subject: mail.subject.to_s,
       body: body_text(mail),
-      received_at: mail.date&.to_time || Time.current
+      received_at: mail.date&.to_time || Time.current,
+      mail: mail
     )
   end
 

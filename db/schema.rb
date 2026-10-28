@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_31_000004) do
+ActiveRecord::Schema[8.1].define(version: 2026_10_28_000001) do
   create_table "allowed_senders", force: :cascade do |t|
     t.boolean "active", default: true, null: false
     t.string "address", null: false
@@ -23,6 +23,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_31_000004) do
   create_table "inbound_emails", force: :cascade do |t|
     t.boolean "auto_filed", default: false, null: false
     t.text "body"
+    t.json "booking_codes", default: [], null: false
     t.string "confidence"
     t.datetime "created_at", null: false
     t.json "created_segment_ids", default: [], null: false

@@ -9,7 +9,7 @@
 <div class="card">
   <h2 class="section-label" style="margin-top:0;">QR code</h2>
   <% if @segment.qr_code %>
-    <div class="seg-qr"><%= image_tag @segment.qr_code.data_uri, alt: "QR code", width: 140, height: 140 %></div>
+    <div class="seg-qr"><%= image_tag @segment.qr_code.data_uri, alt: "Scan code" %></div>
     <p style="margin-top:0.75rem;">
       <%= button_to "Remove QR code", segment_qr_code_path(@segment), method: :delete,
             class: "btn-danger", form: { data: { turbo_confirm: "Remove this QR code?" } } %>

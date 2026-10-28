@@ -41,7 +41,7 @@ class InboundEmail < ApplicationRecord
   end
 
   def release!
-    update!(status: "released", body: nil)
+    update!(status: "released", body: nil, booking_codes: [])
   end
 
   def awaiting_triage?
@@ -146,6 +146,7 @@ class InboundEmail < ApplicationRecord
 
     created = segments_proposed.map { |s| target.segments.create!(segment_attributes(s)) }
     raise ActiveRecord::RecordInvalid, self if created.empty?
+    attach_codes_to(created)
 
     moved = extend_dates && extends_trip ? widen!(target) : {}
     update!(status: "filed", trip: target, created_segment_ids: created.map(&:id),
@@ -166,6 +167,23 @@ class InboundEmail < ApplicationRecord
     trip&.update!(restored) if restored.any?
     update!(status: "received", trip: nil, auto_filed: false, created_segment_ids: [],
             prior_trip_end_date: nil, prior_trip_start_date: nil)
+  end
+
+  # Backfill for an email captured before codes were kept: read them from the
+  # original message and put them on the segments this email created.
+  def recapture_codes!(mail)
+    update!(booking_codes: BookingCode.extract(mail))
+    attach_codes_to(Segment.where(id: created_segment_ids).order(:starts_at).to_a)
+  end
+
+  # Puts this email's scannable codes on the given segments, never replacing a
+  # QR code already there. Returns the segments that got one.
+  def attach_codes_to(segments)
+    BookingCode.assign(booking_codes, segments).filter_map do |segment, code|
+      next if segment.qr_code
+      segment.create_qr_code!(image_data: code["data"], source_url: code["source"])
+      segment
+    end
   end
 
   private

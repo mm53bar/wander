@@ -68,7 +68,8 @@ class EmailIntakeJob < ApplicationJob
       message_id: intake_id(message),
       references: message.references.join(" ").presence,
       from_address: message.from, subject: message.subject, body: message.body,
-      received_at: message.received_at, score: result.score, signals: result.signals
+      received_at: message.received_at, score: result.score, signals: result.signals,
+      booking_codes: message.mail ? BookingCode.extract(message.mail) : []
     )
   end
 
