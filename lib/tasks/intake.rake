@@ -1,7 +1,7 @@
 namespace :intake do
   desc "Re-run triage and filing for stored emails from scratch: intake:reprocess[6,7]"
   task :reprocess, [ :ids ] => :environment do |_task, args|
-    ids = args[:ids].to_s.split(/[,\s]+/).filter_map { |id| Integer(id, exception: false) }
+    ids = [ args[:ids], *args.extras ].join(" ").split(/[,\s]+/).filter_map { |id| Integer(id, exception: false) }
     abort 'Usage: bin/rails "intake:reprocess[6]"' if ids.empty?
 
     InboundEmail.where(id: ids).order(:id).each do |email|
@@ -80,7 +80,7 @@ namespace :intake do
       filed = email.auto_acceptable? ? (email.auto_accept! && " → auto-filed") : ""
       puts "##{email.id} #{email.subject.to_s[0, 40]}: #{before} → #{after}" \
            " (#{email.confidence}#{email.extends_trip ? ", extends to #{email.suggested_end_date}" : ""})#{filed}"
-      puts "    starts_at #{email.proposed_segment['starts_at'].inspect}"
+      email.segments_proposed.each { |s| puts "    starts_at #{s['starts_at'].inspect}" }
     end
   end
 
