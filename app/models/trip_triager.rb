@@ -129,7 +129,8 @@ class TripTriager
       "starts_at_local" => seg["starts_at_local"].presence, "ends_at_local" => seg["ends_at_local"].presence,
       "starts_at_label" => seg["starts_at_label"].presence, "ends_at_label" => seg["ends_at_label"].presence,
       "location" => seg["location"].presence, "confirmation" => seg["confirmation"].presence,
-      "links" => Array(seg["links"]).select { |h| h.is_a?(Hash) && h["url"].present? }
+      "links" => Array(seg["links"]).select { |h| h.is_a?(Hash) && h["url"].present? },
+      "zone_check" => times[:zone_check]
     }
   end
 

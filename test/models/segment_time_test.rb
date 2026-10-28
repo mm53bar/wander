@@ -73,4 +73,44 @@ class SegmentTimeTest < ActiveSupport::TestCase
     )
     assert_equal "-07:00", times[:ends_at].iso8601.last(6)
   end
+
+  def flight(start_zone, end_zone, summary: "WS 503 from Edmonton (YEG) to Victoria (YYJ)")
+    { "kind" => "flight", "summary" => summary, "location" => "Victoria, BC",
+      "starts_at_local" => "2027-01-03T07:00", "starts_time_zone" => start_zone,
+      "ends_at_local" => "2027-01-03T07:55", "ends_time_zone" => end_zone }
+  end
+
+  test "zone_check passes a journey whose zones match the places its summary names" do
+    assert_nil SegmentTime.from_llm(flight("America/Edmonton", "America/Vancouver"))[:zone_check]
+  end
+
+  test "zone_check flags a journey end the model put in the departure's zone" do
+    check = SegmentTime.from_llm(flight("America/Edmonton", "America/Edmonton"))[:zone_check]
+    assert_match(/\Aend resolved to UTC-06:00 but America\/Vancouver is UTC-07:00\z/, check)
+  end
+
+  test "zone_check judges a journey by its summary, not a location naming one end" do
+    assert_nil SegmentTime.from_llm(flight("America/Edmonton", "America/Vancouver").merge("location" => "Victoria, BC"))[:zone_check]
+  end
+
+  test "zone_check skips a journey whose summary names fewer than two places" do
+    assert_nil SegmentTime.from_llm(flight("America/Toronto", "America/Toronto", summary: "WestJet flight WS 503"))[:zone_check]
+  end
+
+  test "zone_check holds a stay to its location" do
+    stay = { "kind" => "hotel", "summary" => "Harbour stay", "location" => "100 Wharf Street, Victoria, BC",
+             "starts_at_local" => "2027-07-15T16:00", "starts_time_zone" => "America/Edmonton" }
+    assert_match(/\Astart resolved to UTC-06:00 but America\/Vancouver/, SegmentTime.from_llm(stay)[:zone_check])
+    assert_nil SegmentTime.from_llm(stay.merge("starts_time_zone" => "America/Vancouver"))[:zone_check]
+  end
+
+  test "the location table takes the first place the location names" do
+    at = resolve(local: "2027-03-12T18:05", zone: "America/Calgary", location: "Calgary (YYC) to Vancouver (YVR)")
+    assert_equal "2027-03-12T18:05:00-06:00", at.iso8601
+  end
+
+  test "a bare 'on' in a location is not read as Ontario" do
+    assert_empty SegmentTime.places_in("Parking on level 2")
+    assert_equal [ "America/Toronto" ], SegmentTime.places_in("Kingston, ON").map { |z| z.tzinfo.identifier }
+  end
 end

@@ -89,6 +89,13 @@ class InboundEmailTest < ActiveSupport::TestCase
     assert_not inbound.auto_acceptable?
   end
 
+  test "auto_acceptable? not when a segment's time zone failed its check" do
+    inbound = inbound_emails(:pending_flight)
+    propose(inbound, segments: [ { "kind" => "flight", "starts_at" => "#{trips(:lisbon).start_date + 1}T10:00:00Z",
+                                   "zone_check" => "end resolved to UTC-06:00 but America/Vancouver is UTC-07:00" } ])
+    assert_not inbound.auto_acceptable?
+  end
+
   test "auto_acceptable? not for an extend with no dates to check" do
     inbound = inbound_emails(:pending_flight)
     propose(inbound, extends_trip: true, segments: [ { "kind" => "note", "summary" => "Undated" } ])

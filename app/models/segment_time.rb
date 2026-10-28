@@ -39,13 +39,15 @@ class SegmentTime
     /\b(ab|alberta|calgary|edmonton|banff|jasper|canmore|lethbridge|yeg|yyc)\b/ => "America/Edmonton",
     /\b(sk|saskatchewan|saskatoon|regina)\b/ => "America/Regina",
     /\b(mb|manitoba|winnipeg)\b/ => "America/Winnipeg",
-    /\b(on|ontario|toronto|ottawa|qc|quebec|montreal|yyz|yul)\b/ => "America/Toronto",
+    /(,\s*on\b|\b(ontario|toronto|ottawa|qc|quebec|montreal|yyz|yul)\b)/ => "America/Toronto",
     /\b(ns|nova scotia|halifax|nb|new brunswick|pei)\b/ => "America/Halifax",
     /\b(nl|newfoundland|st\. john's)\b/ => "America/St_Johns",
     /\b(yt|yukon|whitehorse)\b/ => "America/Whitehorse",
-    /\bsingapore\b/ => "Asia/Singapore",
+    /\b(singapore|changi|sin)\b/ => "Asia/Singapore",
     /\b(london|uk|england|scotland)\b/ => "Europe/London"
   }.freeze
+
+  JOURNEY_KINDS = %w[flight ferry train bus transfer].freeze
 
   # The wording both LLM prompts use, so the two can't drift apart.
   PROMPT = <<~TEXT.freeze
@@ -59,14 +61,44 @@ class SegmentTime
 
   # Resolve both ends of one LLM-proposed segment. The end falls back to the
   # start's zone, which is right for a stay and overridden for a journey.
+  # zone_check is non-nil when the model's zone disagrees with a place the
+  # location table recognises in the segment.
   def self.from_llm(seg)
     location = seg["location"].presence
-    {
-      starts_at: resolve(local: seg["starts_at_local"], label: seg["starts_at_label"],
-                         zone: seg["starts_time_zone"], location: location),
-      ends_at: resolve(local: seg["ends_at_local"], label: seg["ends_at_label"],
-                       zone: seg["ends_time_zone"].presence || seg["starts_time_zone"], location: location)
-    }
+    starts_at = resolve(local: seg["starts_at_local"], label: seg["starts_at_label"],
+                        zone: seg["starts_time_zone"], location: location)
+    ends_at = resolve(local: seg["ends_at_local"], label: seg["ends_at_label"],
+                      zone: seg["ends_time_zone"].presence || seg["starts_time_zone"], location: location)
+    { starts_at: starts_at, ends_at: ends_at, zone_check: zone_check(seg, starts_at, ends_at) }
+  end
+
+  def self.zone_check(seg, starts_at, ends_at)
+    expected = expected_zones(seg)
+    { "start" => starts_at, "end" => ends_at }.zip(expected).filter_map do |(edge, at), tz|
+      next unless at && tz
+      want = at.in_time_zone(tz).utc_offset
+      next if at.utc_offset == want
+      "#{edge} resolved to UTC#{at.formatted_offset} but #{tz.tzinfo.identifier} is UTC#{ActiveSupport::TimeZone.seconds_to_utc_offset(want)}"
+    end.join("; ").presence
+  end
+
+  # A journey is checked only when its summary names both ends, in order; a
+  # one-place booking against its location.
+  def self.expected_zones(seg)
+    places = places_in(seg["summary"])
+    if JOURNEY_KINDS.include?(seg["kind"].to_s.downcase)
+      places.size >= 2 ? [ places.first, places.last ] : [ nil, nil ]
+    else
+      zone = timezone_for(seg["location"]) || places.first
+      [ zone, zone ]
+    end
+  end
+
+  def self.places_in(text)
+    haystack = text.to_s.downcase
+    ZONE_BY_LOCATION.flat_map do |pattern, zone|
+      haystack.enum_for(:scan, pattern).map { [ Regexp.last_match.begin(0), zone ] }
+    end.sort_by(&:first).map { |_, zone| ActiveSupport::TimeZone[zone] }
   end
 
   # local: "2026-09-08T13:00" wall clock. Returns a Time, or nil when no zone
@@ -101,10 +133,9 @@ class SegmentTime
     ActiveSupport::TimeZone[zone.to_s]
   end
 
+  # The first place the location names, not the first row of the table that
+  # matches somewhere in it: "Calgary (YYC) to Vancouver (YVR)" starts in Calgary.
   def self.timezone_for(location)
-    return nil if location.blank?
-    haystack = location.to_s.downcase
-    _, zone = ZONE_BY_LOCATION.find { |pattern, _| haystack.match?(pattern) }
-    zone && ActiveSupport::TimeZone[zone]
+    places_in(location).first
   end
 end

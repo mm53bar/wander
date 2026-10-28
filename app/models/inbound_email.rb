@@ -124,7 +124,8 @@ class InboundEmail < ApplicationRecord
   # them apart.
   def auto_acceptable?
     trip = proposed_trip
-    confidence == "high" && trip.present? && proposed_new_trip.blank? && fits_inside?(trip)
+    confidence == "high" && trip.present? && proposed_new_trip.blank? && fits_inside?(trip) &&
+      segments_proposed.none? { |s| s["zone_check"].present? }
   end
 
   # Store an LLM triage proposal on this email.

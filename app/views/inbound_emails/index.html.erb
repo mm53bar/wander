@@ -33,6 +33,9 @@
             <% if seg["location"].present? %><span><%= seg["location"] %></span><% end %>
             <% if seg["confirmation"].present? %><span class="seg-conf"><%= seg["confirmation"] %></span><% end %>
           </div>
+          <% if seg["zone_check"].present? %>
+            <p class="subtle" style="margin:0 0 0.5rem;">⚠️ Check the time zone: <%= seg["zone_check"] %></p>
+          <% end %>
         <% end %>
         <p class="subtle" style="margin-top:0.4rem;">
           <% if email.proposed_trip %>→ <strong><%= email.proposed_trip.name %></strong><%
